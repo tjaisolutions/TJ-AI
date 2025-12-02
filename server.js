@@ -1,3 +1,4 @@
+
 import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
@@ -70,9 +71,20 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('user-connected', socket.id);
   });
 
+  // Novo evento: User diz que está pronto (útil para reconexões ou atrasos)
+  socket.on('ready', (roomId) => {
+    socket.to(roomId).emit('user-connected', socket.id);
+  });
+
+  // Evento específico para avisar que o compartilhamento de tela mudou
+  // Isso ajuda o cliente remoto a atualizar o player de vídeo se ficar preto
+  socket.on('screen-toggle', (data) => {
+    socket.to(data.roomId).emit('screen-toggle', data.isSharing);
+  });
+
   // Sinalização WebRTC (Offer, Answer, ICE Candidates)
   socket.on('signal', (data) => {
-    // Retransmite o sinal para o destinatário específico ou broadcast na sala
+    // Retransmite o sinal para o destinatário específico
     io.to(data.target).emit('signal', {
       sender: socket.id,
       signal: data.signal
