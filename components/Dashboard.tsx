@@ -77,34 +77,36 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, leads, costs }) => {
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6">
         <h2 className="text-3xl font-bold text-white">Visão Geral</h2>
         
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full sm:w-auto">
             {/* Date Range Picker */}
-            <div className="flex items-center gap-2 bg-[#1e2e41] p-1.5 rounded-lg border border-[#1687cb]/20">
-                <Calendar size={16} className="text-[#20bbe3] ml-2" />
-                <input 
-                    type="date" 
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="bg-transparent text-xs text-slate-300 outline-none border-none p-1" 
-                />
-                <span className="text-slate-500">-</span>
+            <div className="flex items-center gap-2 bg-[#1e2e41] p-1.5 rounded-lg border border-[#1687cb]/20 w-full sm:w-auto justify-between sm:justify-start">
+                <div className="flex items-center flex-1">
+                    <Calendar size={16} className="text-[#20bbe3] ml-2 shrink-0" />
+                    <input 
+                        type="date" 
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="bg-transparent text-xs text-slate-300 outline-none border-none p-1 w-full sm:w-24" 
+                    />
+                </div>
+                <span className="text-slate-500 shrink-0">-</span>
                 <input 
                     type="date" 
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="bg-transparent text-xs text-slate-300 outline-none border-none p-1" 
+                    className="bg-transparent text-xs text-slate-300 outline-none border-none p-1 w-full sm:w-24 text-right sm:text-left" 
                 />
             </div>
 
             {/* Period Selector */}
-            <div className="flex items-center gap-2 bg-[#1e2e41] p-1 rounded-lg border border-[#1687cb]/20">
+            <div className="flex items-center gap-2 bg-[#1e2e41] p-1 rounded-lg border border-[#1687cb]/20 w-full sm:w-auto">
             <div className="px-2 text-slate-400">
                 <Filter size={18} />
             </div>
             <select 
                 value={filterPeriod} 
                 onChange={(e) => setFilterPeriod(e.target.value)}
-                className="bg-transparent text-sm font-semibold text-white outline-none border-none p-2 cursor-pointer hover:text-[#20bbe3] transition-colors"
+                className="bg-transparent text-sm font-semibold text-white outline-none border-none p-2 cursor-pointer hover:text-[#20bbe3] transition-colors flex-1 w-full"
             >
                 <option value="Month" className="bg-[#1e2e41]">Este Mês</option>
                 <option value="Quarter" className="bg-[#1e2e41]">Último Trimestre</option>
@@ -141,7 +143,7 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, leads, costs }) => {
         {/* Revenue Area Chart */}
         <div className="bg-[#1e2e41] p-6 rounded-2xl border border-[#1687cb]/10">
           <h3 className="text-lg font-semibold text-white mb-6">Receita {filterPeriod === 'Year' ? 'Anual' : filterPeriod === 'Quarter' ? 'Trimestral' : 'Mensal'}</h3>
-          <div className="h-80">
+          <div className="h-64 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={revenueData}>
                 <defs>
@@ -151,8 +153,8 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, leads, costs }) => {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#2d3f57" vertical={false} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} dy={10} interval={0} fontSize={12} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} fontSize={12} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#111623', border: '1px solid #2d3f57', borderRadius: '8px' }}
                   itemStyle={{ color: '#20bbe3' }}
@@ -169,7 +171,7 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, leads, costs }) => {
             <h3 className="text-lg font-semibold text-white">Distribuição por Fase</h3>
             <span className="text-xs text-slate-400 bg-[#111623] px-2 py-1 rounded">Quantidade de Projetos</span>
           </div>
-          <div className="h-80 relative">
+          <div className="h-64 sm:h-80 relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
