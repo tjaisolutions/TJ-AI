@@ -163,7 +163,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-// Use httpServer.listen ao invés de app.listen para funcionar o WebSocket
-httpServer.listen(PORT, () => {
+// Use httpServer.listen com '0.0.0.0' para evitar Timeout no Render
+httpServer.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
