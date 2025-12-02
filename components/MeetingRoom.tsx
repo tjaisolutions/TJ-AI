@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Video, VideoOff, PhoneOff, MessageSquare, Share, Captions, CircleDot, Loader2, RefreshCw, UserPlus, CheckCircle2, LogOut } from 'lucide-react';
 import { RecordedMeeting, TranscriptItem } from '../types';
@@ -19,6 +20,7 @@ const ICE_SERVERS = {
 };
 
 const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGuest = false }) => {
+  // Referências Fixas para os elementos de vídeo
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   
@@ -50,19 +52,21 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
   const [transcript, setTranscript] = useState<TranscriptItem[]>([]);
   const recognitionRef = useRef<any>(null);
   const [sidebarMode, setSidebarMode] = useState<'PARTICIPANTS' | 'TRANSCRIPT'>('PARTICIPANTS');
+  const [isListening, setIsListening] = useState(false); // Visual indicator for voice activity
 
   // --- 1. SETUP LOCAL MEDIA ---
   useEffect(() => {
     const startLocalStream = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            // Solicita vídeo e áudio. Em mobile, idealmente usa a câmera frontal por padrão ('user')
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'user' }, 
+                audio: true 
+            });
             setLocalStream(stream);
-            if (localVideoRef.current) {
-                localVideoRef.current.srcObject = stream;
-            }
         } catch (err: any) {
             console.error("Erro ao acessar mídia:", err);
-            setError("Não foi possível acessar câmera ou microfone. Verifique as permissões.");
+            setError("Permissão de câmera/microfone negada ou indisponível.");
         }
     };
 
@@ -76,6 +80,20 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
         }
     };
   }, [meetingEnded]);
+
+  // Attach Stream to Video Element (Robust way)
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+        localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+        remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
 
   // --- 2. SOCKET & WEBRTC LOGIC ---
   useEffect(() => {
@@ -108,7 +126,6 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
     socket.on('user-disconnected', () => {
         setNotification("Participante desconectou.");
         setRemoteStream(null);
-        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
         // Reiniciar conexão se necessário, ou fechar PC
         if (peerConnectionRef.current) {
             peerConnectionRef.current.close();
@@ -137,9 +154,9 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
 
       pc.ontrack = (event) => {
           console.log("Recebeu track remoto");
-          setRemoteStream(event.streams[0]);
-          if (remoteVideoRef.current) {
-              remoteVideoRef.current.srcObject = event.streams[0];
+          // Verifica se o stream já existe para não resetar
+          if (event.streams && event.streams[0]) {
+            setRemoteStream(event.streams[0]);
           }
       };
 
@@ -204,7 +221,7 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
     }
   }, [isCameraOn, localStream]);
 
-  // --- SPEECH RECOGNITION (Keep Existing Logic) ---
+  // --- SPEECH RECOGNITION ---
   useEffect(() => {
       isTranscribingRef.current = isTranscribing;
   }, [isTranscribing]);
@@ -212,12 +229,24 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
   useEffect(() => {
       const shouldListen = isTranscribing || isRecording;
       if (shouldListen && !meetingEnded) {
-          if (!('webkitSpeechRecognition' in window)) return;
+          if (!('webkitSpeechRecognition' in window)) {
+              if (isTranscribing) alert("Seu navegador não suporta transcrição (Use Chrome).");
+              return;
+          }
           const SpeechRecognition = (window as any).webkitSpeechRecognition;
           const recognition = new SpeechRecognition();
           recognition.continuous = true;
           recognition.interimResults = true;
           recognition.lang = 'pt-BR';
+
+          recognition.onstart = () => setIsListening(true);
+          recognition.onend = () => {
+              setIsListening(false);
+              // Auto restart if still supposed to be listening
+              if (isTranscribingRef.current) {
+                  try { recognition.start(); } catch(e) {}
+              }
+          };
 
           recognition.onresult = (event: any) => {
               for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -233,40 +262,54 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
                   }
               }
           };
-          recognition.start();
+          try {
+            recognition.start();
+          } catch(e) {
+              console.log("Recognition already started");
+          }
           recognitionRef.current = recognition;
       } else {
           recognitionRef.current?.stop();
+          setIsListening(false);
       }
-      return () => recognitionRef.current?.stop();
+      return () => {
+          recognitionRef.current?.stop();
+      };
   }, [isTranscribing, isRecording, meetingEnded]);
 
   const handleHangUp = async () => {
+    // 1. Stop Media
     localStream?.getTracks().forEach(track => track.stop());
     peerConnectionRef.current?.close();
     socketRef.current?.disconnect();
 
+    // 2. Process AI if recording
     if (isGuest) {
         setMeetingEnded(true);
     } else {
-        // Host Saving Logic
         if (isRecording && transcript.length > 0) {
             setIsProcessing(true);
-            const fullText = transcript.map(t => `${t.speaker}: ${t.text}`).join('\n');
-            const analysis = await analyzeMeeting(fullText);
-            const newRecord: RecordedMeeting = {
-                id: `rec-${Date.now()}`,
-                title: "Reunião Gravada - " + new Date().toLocaleDateString(),
-                date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString(),
-                duration: "XX min",
-                participants: ["Você", "Participante"],
-                fullTranscript: transcript,
-                aiSummary: analysis.summary,
-                aiActionPlan: analysis.actionPlan,
-                createdBy: 'Usuário Atual'
-            };
-            onSaveMeeting(newRecord);
-            setIsProcessing(false);
+            try {
+                const fullText = transcript.map(t => `${t.speaker}: ${t.text}`).join('\n');
+                const analysis = await analyzeMeeting(fullText);
+                const newRecord: RecordedMeeting = {
+                    id: `rec-${Date.now()}`,
+                    title: "Reunião Gravada - " + new Date().toLocaleDateString(),
+                    date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString(),
+                    duration: "XX min",
+                    participants: ["Você", "Participante"],
+                    fullTranscript: transcript,
+                    aiSummary: analysis.summary || "Resumo não disponível",
+                    aiActionPlan: analysis.actionPlan || "Plano não disponível",
+                    createdBy: 'Usuário Atual'
+                };
+                onSaveMeeting(newRecord);
+            } catch (err) {
+                console.error("Erro na análise IA", err);
+                onLeave(); // Sai mesmo com erro
+            } finally {
+                setIsProcessing(false);
+            }
         } else {
             onLeave();
         }
@@ -282,24 +325,33 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
 
   // --- RENDER ---
   
-  if (isProcessing) return <div className="h-screen w-full flex items-center justify-center bg-[#111623] text-white"><Loader2 className="animate-spin mb-2" /> Processando IA...</div>;
+  if (isProcessing) return (
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-[#111623] text-white gap-4">
+        <div className="relative">
+            <div className="absolute inset-0 bg-[#20bbe3] blur-xl opacity-20 rounded-full animate-pulse"></div>
+            <Loader2 className="animate-spin text-[#20bbe3] relative z-10" size={64} />
+        </div>
+        <h2 className="text-xl font-bold">Processando Reunião...</h2>
+        <p className="text-slate-400 text-sm">A IA está gerando o resumo e o plano de ação.</p>
+    </div>
+  );
   
   if (meetingEnded) return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-[#111623] text-white text-center p-4">
           <CheckCircle2 size={48} className="text-[#20bbe3] mb-4" />
           <h2 className="text-3xl font-bold mb-2">Reunião Encerrada</h2>
           <p className="text-slate-400">Você pode fechar esta janela.</p>
-          <button onClick={() => window.location.reload()} className="mt-6 px-6 py-2 bg-[#1e2e41] rounded-lg">Entrar Novamente</button>
+          <button onClick={() => window.location.reload()} className="mt-6 px-6 py-2 bg-[#1e2e41] rounded-lg border border-[#1687cb]/20">Entrar Novamente</button>
       </div>
   );
 
-  const containerClass = isGuest ? "h-screen w-full p-4" : "h-[calc(100vh-140px)]";
+  const containerClass = isGuest ? "h-[100dvh] w-full p-2 sm:p-4" : "h-[calc(100vh-140px)]";
 
   return (
     <div className={`${containerClass} flex gap-4 animate-in fade-in duration-500 relative bg-[#111623]`}>
-        {/* Toast */}
+        {/* Toast Notification */}
         {notification && (
-            <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50 bg-[#1e2e41] text-white px-4 py-3 rounded-xl shadow-2xl border border-[#20bbe3]/30 flex items-center gap-3 animate-in slide-in-from-top-4">
+            <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50 bg-[#1e2e41]/90 backdrop-blur text-white px-4 py-3 rounded-xl shadow-2xl border border-[#20bbe3]/30 flex items-center gap-3 animate-in slide-in-from-top-4 w-max max-w-[90%]">
                 <div className="w-2 h-2 rounded-full bg-[#20bbe3] animate-pulse"></div>
                 <span className="text-sm font-medium">{notification}</span>
             </div>
@@ -312,9 +364,9 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
             </div>
         )}
 
-        {/* Video Area */}
+        {/* --- MAIN VIDEO AREA --- */}
         <div className="flex-1 bg-[#111623] rounded-2xl relative overflow-hidden flex flex-col shadow-2xl border border-[#1687cb]/10 group">
-            <div className="flex-1 relative bg-[#0d1117] overflow-hidden">
+            <div className="flex-1 relative bg-[#0d1117] overflow-hidden w-full h-full">
                 {error ? (
                     <div className="flex flex-col items-center justify-center h-full text-red-400">
                         <VideoOff size={48} className="mb-4" />
@@ -322,68 +374,94 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
                     </div>
                 ) : (
                     <>
-                        {/* MAIN VIDEO (Mostra o REMOTO se existir, senão mostra o LOCAL) */}
+                        {/* 
+                           ESTRATÉGIA DE VÍDEO DUAL:
+                           Renderizamos DOIS elementos de vídeo fixos.
+                           Controlamos apenas a visibilidade (CSS) deles.
+                           Isso impede que o React desmonte o componente e perca o stream no mobile.
+                        */}
+
+                        {/* 1. REMOTE VIDEO ELEMENT */}
                         <video 
-                            ref={remoteStream ? remoteVideoRef : localVideoRef} 
+                            ref={remoteVideoRef}
                             autoPlay 
                             playsInline 
-                            className="w-full h-full object-cover transform scale-x-[-1]" 
+                            className={`w-full h-full object-cover transform scale-x-[-1] transition-opacity duration-500 absolute inset-0 ${remoteStream ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
                         />
 
-                        {/* PIP VIDEO (Mostra o LOCAL se o remoto estiver na tela principal) */}
-                        {remoteStream && (
-                            <div className="absolute bottom-4 right-4 w-32 h-48 md:w-48 md:h-32 bg-[#1e2e41] rounded-xl border border-[#1687cb]/30 overflow-hidden shadow-2xl z-20">
-                                <video 
-                                    ref={localVideoRef} 
-                                    autoPlay 
-                                    muted 
-                                    playsInline 
-                                    className="w-full h-full object-cover transform scale-x-[-1]" 
-                                />
-                                <div className="absolute bottom-1 right-2 w-2 h-2 bg-emerald-500 rounded-full border border-black"></div>
-                            </div>
+                        {/* 2. LOCAL VIDEO ELEMENT (Main or PiP) */}
+                        <div className={`transition-all duration-500 absolute overflow-hidden rounded-xl border border-[#1687cb]/30 shadow-2xl
+                            ${remoteStream 
+                                ? 'bottom-4 right-4 w-28 h-40 md:w-48 md:h-32 z-20 hover:scale-105'  // PiP Mode
+                                : 'inset-0 w-full h-full z-10 border-none rounded-none' // Fullscreen Mode
+                            }
+                        `}>
+                            <video 
+                                ref={localVideoRef} 
+                                autoPlay 
+                                playsInline
+                                muted // Sempre mudo para evitar eco local
+                                className="w-full h-full object-cover transform scale-x-[-1]" 
+                            />
+                            {/* Dot indicator for PiP */}
+                            {remoteStream && <div className="absolute bottom-1 right-2 w-2 h-2 bg-emerald-500 rounded-full border border-black"></div>}
+                        </div>
+
+                        {/* Placeholder when waiting */}
+                        {!remoteStream && !error && (
+                             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 text-center pointer-events-none">
+                                <div className="w-16 h-16 border-4 border-[#20bbe3] border-t-transparent rounded-full animate-spin mx-auto mb-4 opacity-50"></div>
+                                <p className="text-white/70 font-medium text-lg shadow-black drop-shadow-md">Aguardando participante...</p>
+                             </div>
                         )}
                     </>
                 )}
                 
-                <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded text-white text-sm font-medium z-10 flex items-center gap-2">
-                    {isMicOn ? <Mic size={14} className="text-emerald-400" /> : <MicOff size={14} className="text-red-400" />}
-                    {remoteStream ? "Chamada em Andamento" : "Aguardando Participante..."}
+                {/* Status Bar Overlay */}
+                <div className="absolute top-4 left-4 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-lg text-white text-xs font-medium z-30 flex items-center gap-3">
+                    <div className="flex items-center gap-1">
+                        {isMicOn ? <Mic size={12} className="text-emerald-400" /> : <MicOff size={12} className="text-red-400" />}
+                        {isListening && <span className="text-emerald-400 animate-pulse text-[10px]">Ouvindo...</span>}
+                    </div>
+                    <div className="w-px h-3 bg-white/20"></div>
+                    <div>
+                         {remoteStream ? <span className="text-emerald-400">Conectado</span> : <span className="text-slate-300">Aguardando</span>}
+                    </div>
                 </div>
             </div>
 
-            {/* Controls */}
-            <div className="h-20 bg-[#1e2e41] flex items-center justify-between px-6 border-t border-[#1687cb]/10 relative z-20 shrink-0">
-                <div className="flex items-center gap-3 absolute left-1/2 transform -translate-x-1/2">
-                    <button onClick={() => setIsMicOn(!isMicOn)} className={`p-4 rounded-full transition-all duration-200 shadow-lg ${isMicOn ? 'bg-[#2d3f57] hover:bg-[#3d5375] text-white' : 'bg-red-500 text-white'}`}>
+            {/* Controls Bar */}
+            <div className="h-16 sm:h-20 bg-[#1e2e41] flex items-center justify-center sm:justify-between px-4 sm:px-6 border-t border-[#1687cb]/10 relative z-30 shrink-0">
+                <div className="flex items-center gap-3 sm:gap-4">
+                    <button onClick={() => setIsMicOn(!isMicOn)} className={`p-3 sm:p-4 rounded-full transition-all duration-200 shadow-lg ${isMicOn ? 'bg-[#2d3f57] hover:bg-[#3d5375] text-white' : 'bg-red-500 text-white'}`}>
                         {isMicOn ? <Mic size={20} /> : <MicOff size={20} />}
                     </button>
-                    <button onClick={() => setIsCameraOn(!isCameraOn)} className={`p-4 rounded-full transition-all duration-200 shadow-lg ${isCameraOn ? 'bg-[#2d3f57] hover:bg-[#3d5375] text-white' : 'bg-red-500 text-white'}`}>
+                    <button onClick={() => setIsCameraOn(!isCameraOn)} className={`p-3 sm:p-4 rounded-full transition-all duration-200 shadow-lg ${isCameraOn ? 'bg-[#2d3f57] hover:bg-[#3d5375] text-white' : 'bg-red-500 text-white'}`}>
                         {isCameraOn ? <Video size={20} /> : <VideoOff size={20} />}
                     </button>
                     
                     {!isGuest && (
-                        <button onClick={() => setIsRecording(!isRecording)} className={`p-4 rounded-full transition-all duration-200 ${isRecording ? 'bg-white text-red-600 shadow-lg' : 'bg-[#2d3f57] hover:bg-[#3d5375] text-white'}`}>
+                        <button onClick={() => setIsRecording(!isRecording)} className={`p-3 sm:p-4 rounded-full transition-all duration-200 ${isRecording ? 'bg-white text-red-600 shadow-lg' : 'bg-[#2d3f57] hover:bg-[#3d5375] text-white'}`}>
                             <CircleDot size={20} className={isRecording ? "animate-pulse fill-red-600" : ""} />
                         </button>
                     )}
 
-                    <button onClick={() => setIsTranscribing(!isTranscribing)} className={`p-4 rounded-full transition-all duration-200 hidden sm:flex ${isTranscribing ? 'bg-[#20bbe3] text-[#111623]' : 'bg-[#2d3f57] hover:bg-[#3d5375] text-white'}`}>
+                    <button onClick={() => setIsTranscribing(!isTranscribing)} className={`p-3 sm:p-4 rounded-full transition-all duration-200 hidden sm:flex ${isTranscribing ? 'bg-[#20bbe3] text-[#111623]' : 'bg-[#2d3f57] hover:bg-[#3d5375] text-white'}`}>
                         <Captions size={20} />
                     </button>
 
-                    <button onClick={handleShareLink} className="p-4 rounded-full bg-[#2d3f57] hover:bg-[#3d5375] text-white hidden sm:flex">
+                    <button onClick={handleShareLink} className="p-3 sm:p-4 rounded-full bg-[#2d3f57] hover:bg-[#3d5375] text-white hidden sm:flex">
                         <Share size={20} />
                     </button>
 
-                    <button onClick={handleHangUp} className="p-4 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg">
+                    <button onClick={handleHangUp} className="p-3 sm:p-4 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg ml-2">
                         {isGuest ? <LogOut size={24} /> : <PhoneOff size={24} />}
                     </button>
                 </div>
             </div>
         </div>
 
-        {/* Sidebar */}
+        {/* --- SIDEBAR (Desktop Only) --- */}
         <div className="w-80 bg-[#1e2e41] rounded-2xl border border-[#1687cb]/10 hidden lg:flex flex-col shadow-xl">
              <div className="flex border-b border-[#1687cb]/10 bg-[#111623]/20 rounded-t-2xl">
                 <button onClick={() => setSidebarMode('PARTICIPANTS')} className={`flex-1 py-3 text-sm font-bold transition-colors ${sidebarMode === 'PARTICIPANTS' ? 'text-white border-b-2 border-[#20bbe3]' : 'text-slate-500'}`}>Participantes</button>
@@ -424,12 +502,14 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
                     </div>
                 ) : (
                     <div className="space-y-4">
+                        {transcript.length === 0 && <p className="text-center text-slate-500 text-xs mt-4">Nenhuma fala detectada ainda.</p>}
                         {transcript.map((item) => (
-                            <div key={item.id} className="bg-[#111623]/50 p-2.5 rounded-lg border border-[#1687cb]/10">
+                            <div key={item.id} className="bg-[#111623]/50 p-2.5 rounded-lg border border-[#1687cb]/10 animate-in fade-in slide-in-from-bottom-1">
                                 <p className="text-xs font-bold text-[#20bbe3] mb-1">{item.speaker} <span className="text-slate-500 font-normal">({item.timestamp})</span></p>
                                 <p className="text-sm text-slate-200">{item.text}</p>
                             </div>
                         ))}
+                        {isListening && <div className="text-xs text-slate-500 italic text-center animate-pulse">Ouvindo...</div>}
                     </div>
                 )}
             </div>
