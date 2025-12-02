@@ -83,44 +83,46 @@ const Agenda: React.FC<AgendaProps> = ({ clients, projects, meetings, setMeeting
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 h-[calc(100vh-140px)] flex flex-col">
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-2 gap-4">
         <h2 className="text-3xl font-bold text-white">Agenda & Reuniões</h2>
         
-        <div className="flex bg-[#1e2e41] p-1 rounded-lg border border-[#1687cb]/20">
-            <button 
-                onClick={() => setActiveTab('CALENDAR')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all ${activeTab === 'CALENDAR' ? 'bg-[#20bbe3] text-[#111623] shadow-lg' : 'text-slate-400 hover:text-white'}`}
-            >
-                <CalendarIcon size={18} />
-                Calendário
-            </button>
-            <button 
-                onClick={() => setActiveTab('HISTORY')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-all ${activeTab === 'HISTORY' ? 'bg-[#20bbe3] text-[#111623] shadow-lg' : 'text-slate-400 hover:text-white'}`}
-            >
-                <History size={18} />
-                Histórico & Gravações
-            </button>
-        </div>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <div className="flex bg-[#1e2e41] p-1 rounded-lg border border-[#1687cb]/20 w-full sm:w-auto">
+                <button 
+                    onClick={() => setActiveTab('CALENDAR')}
+                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium transition-all ${activeTab === 'CALENDAR' ? 'bg-[#20bbe3] text-[#111623] shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                >
+                    <CalendarIcon size={18} />
+                    Calendário
+                </button>
+                <button 
+                    onClick={() => setActiveTab('HISTORY')}
+                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium transition-all ${activeTab === 'HISTORY' ? 'bg-[#20bbe3] text-[#111623] shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                >
+                    <History size={18} />
+                    Histórico
+                </button>
+            </div>
 
-        {activeTab === 'CALENDAR' && (
-             <button 
-                onClick={() => {
-                    const today = new Date().toISOString().split('T')[0];
-                    setNewMeeting({...newMeeting, date: today, time: '09:00'});
-                    setIsModalOpen(true);
-                }}
-                className="bg-[#20bbe3] hover:bg-[#1687cb] text-[#111623] px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 shadow-lg shadow-[#20bbe3]/20 active:scale-95"
-            >
-            <Plus size={18} />
-            Agendar
-            </button>
-        )}
+            {activeTab === 'CALENDAR' && (
+                <button 
+                    onClick={() => {
+                        const today = new Date().toISOString().split('T')[0];
+                        setNewMeeting({...newMeeting, date: today, time: '09:00'});
+                        setIsModalOpen(true);
+                    }}
+                    className="bg-[#20bbe3] hover:bg-[#1687cb] text-[#111623] px-4 py-2 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-[#20bbe3]/20 active:scale-95 w-full sm:w-auto"
+                >
+                <Plus size={18} />
+                Agendar
+                </button>
+            )}
+        </div>
       </div>
 
       {activeTab === 'CALENDAR' ? (
         <>
-            <div className="flex items-center gap-4 bg-[#1e2e41] p-1 rounded-lg border border-[#1687cb]/20 w-fit mb-4">
+            <div className="flex items-center gap-4 bg-[#1e2e41] p-1 rounded-lg border border-[#1687cb]/20 w-full sm:w-fit mb-4 justify-between sm:justify-start">
                 <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-[#111623] rounded-lg text-slate-400 hover:text-white transition-colors">
                     <ChevronLeft size={20} />
                 </button>
@@ -137,8 +139,8 @@ const Agenda: React.FC<AgendaProps> = ({ clients, projects, meetings, setMeeting
                 {/* Weekday Headers */}
                 <div className="grid grid-cols-7 bg-[#111623] border-b border-[#1687cb]/20">
                     {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                    <div key={day} className="py-3 text-center text-sm font-semibold text-slate-500 uppercase tracking-wider">
-                        {day}
+                    <div key={day} className="py-2 sm:py-3 text-center text-xs sm:text-sm font-semibold text-slate-500 uppercase tracking-wider">
+                        {day.slice(0, 3)}
                     </div>
                     ))}
                 </div>
@@ -146,7 +148,7 @@ const Agenda: React.FC<AgendaProps> = ({ clients, projects, meetings, setMeeting
                 {/* Days */}
                 <div className="grid grid-cols-7 flex-1 auto-rows-fr">
                     {blanks.map(blank => (
-                    <div key={`blank-${blank}`} className="bg-[#111623]/30 border-r border-b border-[#1687cb]/10 min-h-[100px]"></div>
+                    <div key={`blank-${blank}`} className="bg-[#111623]/30 border-r border-b border-[#1687cb]/10 min-h-[60px] sm:min-h-[100px]"></div>
                     ))}
                     
                     {days.map(day => {
@@ -158,28 +160,28 @@ const Agenda: React.FC<AgendaProps> = ({ clients, projects, meetings, setMeeting
                         <div 
                             key={day} 
                             onClick={() => handleDayClick(day)}
-                            className={`border-r border-b border-[#1687cb]/10 p-2 min-h-[120px] cursor-pointer transition-colors relative group hover:bg-[#1687cb]/5
+                            className={`border-r border-b border-[#1687cb]/10 p-1 sm:p-2 min-h-[60px] sm:min-h-[120px] cursor-pointer transition-colors relative group hover:bg-[#1687cb]/5
                                 ${isToday ? 'bg-[#20bbe3]/5' : ''}
                             `}
                         >
-                            <span className={`text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full mb-2
+                            <span className={`text-xs sm:text-sm font-medium w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full mb-1 sm:mb-2
                                 ${isToday ? 'bg-[#20bbe3] text-[#111623] font-bold shadow-lg shadow-[#20bbe3]/30' : 'text-slate-400 group-hover:text-white'}
                             `}>
                                 {day}
                             </span>
                             
-                            <div className="space-y-1 overflow-y-auto max-h-[80px] custom-scrollbar">
+                            <div className="space-y-1 overflow-y-auto max-h-[40px] sm:max-h-[80px] custom-scrollbar">
                                 {dayMeetings.map(meeting => (
-                                <div key={meeting.id} className={`text-[10px] px-2 py-1 rounded border truncate flex flex-col gap-0.5
+                                <div key={meeting.id} className={`text-[8px] sm:text-[10px] px-1 sm:px-2 py-0.5 sm:py-1 rounded border truncate flex flex-col gap-0.5
                                     ${meeting.type === 'Online' 
                                         ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-300' 
                                         : 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300'}
                                 `}>
                                     <div className="flex justify-between items-center">
                                        <span className="font-bold opacity-75">{meeting.time}</span>
-                                       {meeting.createdBy && <span className="opacity-50 text-[8px] flex items-center gap-0.5"><UserIcon size={8} /> {meeting.createdBy.split(' ')[0]}</span>}
+                                       {meeting.createdBy && <span className="opacity-50 text-[8px] hidden sm:flex items-center gap-0.5"><UserIcon size={8} /> {meeting.createdBy.split(' ')[0]}</span>}
                                     </div>
-                                    <span>{meeting.title}</span>
+                                    <span className="truncate">{meeting.title}</span>
                                 </div>
                                 ))}
                             </div>
@@ -191,9 +193,9 @@ const Agenda: React.FC<AgendaProps> = ({ clients, projects, meetings, setMeeting
         </>
       ) : (
         /* HISTORY VIEW */
-        <div className="flex-1 flex gap-6 overflow-hidden">
+        <div className="flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden">
             {/* List of Recordings */}
-            <div className="w-1/3 bg-[#1e2e41] rounded-2xl border border-[#1687cb]/10 flex flex-col overflow-hidden">
+            <div className="w-full lg:w-1/3 bg-[#1e2e41] rounded-2xl border border-[#1687cb]/10 flex flex-col overflow-hidden max-h-[300px] lg:max-h-full">
                 <div className="p-4 border-b border-[#1687cb]/10 bg-[#111623]/20">
                     <h3 className="font-bold text-white">Gravações Recentes</h3>
                 </div>
@@ -233,7 +235,7 @@ const Agenda: React.FC<AgendaProps> = ({ clients, projects, meetings, setMeeting
             </div>
 
             {/* Detail View */}
-            <div className="flex-1 bg-[#1e2e41] rounded-2xl border border-[#1687cb]/10 flex flex-col overflow-hidden">
+            <div className="flex-1 bg-[#1e2e41] rounded-2xl border border-[#1687cb]/10 flex flex-col overflow-hidden h-full">
                 {selectedRecord ? (
                     <div className="flex-1 flex flex-col overflow-hidden">
                         {/* Header */}
@@ -287,7 +289,7 @@ const Agenda: React.FC<AgendaProps> = ({ clients, projects, meetings, setMeeting
                         </div>
                     </div>
                 ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
+                    <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-8 text-center">
                         <FileText size={48} className="mb-4 opacity-20" />
                         <p>Selecione uma reunião para ver os detalhes e análise da IA.</p>
                     </div>
