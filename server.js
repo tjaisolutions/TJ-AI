@@ -67,6 +67,7 @@ io.on('connection', (socket) => {
   // Entrar em uma sala (fixa por enquanto, 'meeting-room-1')
   socket.on('join-room', (roomId, userId) => {
     socket.join(roomId);
+    console.log(`Socket ${socket.id} joined room ${roomId}`);
     // Avisa os outros que alguém entrou (para iniciar a conexão WebRTC)
     socket.to(roomId).emit('user-connected', socket.id);
   });
@@ -77,18 +78,30 @@ io.on('connection', (socket) => {
   });
 
   // Evento específico para avisar que o compartilhamento de tela mudou
-  // Isso ajuda o cliente remoto a atualizar o player de vídeo se ficar preto
   socket.on('screen-toggle', (data) => {
     socket.to(data.roomId).emit('screen-toggle', data.isSharing);
   });
 
   // Sinalização WebRTC (Offer, Answer, ICE Candidates)
   socket.on('signal', (data) => {
-    // Retransmite o sinal para o destinatário específico
-    io.to(data.target).emit('signal', {
-      sender: socket.id,
-      signal: data.signal
-    });
+    // CORREÇÃO: Se o target for 'broadcast' ou se tiver roomId mas não target específico
+    // usamos socket.to(roomId) para enviar para todos na sala exceto o remetente.
+    const roomId = data.roomId;
+    const target = data.target;
+
+    if (target && target !== 'broadcast') {
+        // Envia para um usuário específico
+        io.to(target).emit('signal', {
+          sender: socket.id,
+          signal: data.signal
+        });
+    } else if (roomId) {
+        // Broadcast na sala (excluindo quem enviou)
+        socket.to(roomId).emit('signal', {
+          sender: socket.id,
+          signal: data.signal
+        });
+    }
   });
 
   // Sinalização para saída
