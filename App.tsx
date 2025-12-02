@@ -12,7 +12,7 @@ import Settings from './components/Settings';
 import Login from './components/Login';
 import { ViewState, Cost, Client, Budget, Project, Meeting, RecordedMeeting, CRMLead, Receivable, User } from './types';
 import { MOCK_PROJECTS, MOCK_CLIENTS, MOCK_LEADS, MOCK_BUDGETS, MOCK_COSTS, MOCK_MEETINGS, MOCK_RECEIVABLES, MOCK_USERS } from './constants';
-import { Search, Bell, Plus, LogOut, X, ChevronRight, FolderKanban, Users, UserIcon, Menu } from 'lucide-react';
+import { Search, Bell, Plus, LogOut, X, ChevronRight, FolderKanban, Users, UserIcon, Menu, FileText, Wallet } from 'lucide-react';
 import { Modal, FormInput, FormSelect } from './components/Modal';
 
 // --- LocalStorage Helper ---
@@ -395,7 +395,7 @@ const App: React.FC = () => {
       clientGroups[clientName].push(cost);
     });
 
-    const CostCard = ({ cost }: { cost: Cost }) => (
+    const CostCard: React.FC<{ cost: Cost }> = ({ cost }) => (
       <div className="bg-[#1e2e41] p-4 rounded-xl border border-[#1687cb]/10 flex justify-between items-center hover:border-[#20bbe3]/30 transition-all group">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
@@ -598,8 +598,8 @@ const App: React.FC = () => {
       
       <main className={`min-h-screen flex flex-col transition-all duration-300 lg:pl-64 pl-0`}>
         {/* Top Header */}
-        <header className="h-20 bg-[#111623]/80 backdrop-blur-md sticky top-0 z-30 border-b border-[#1687cb]/20 px-4 md:px-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <header className="h-20 bg-[#111623]/80 backdrop-blur-md sticky top-0 z-30 border-b border-[#1687cb]/20 px-4 flex items-center justify-between">
+          <div className="flex items-center gap-3 w-full lg:w-auto">
              {/* Mobile Menu Button */}
              <button 
                onClick={() => setIsSidebarOpen(true)}
@@ -608,18 +608,18 @@ const App: React.FC = () => {
                <Menu size={24} />
              </button>
 
-             {/* Mobile Logo Name (Only visible if needed, but sidebar has logo too) */}
-             <span className="lg:hidden font-bold text-white tracking-tight">
+             {/* Mobile Logo Name */}
+             <span className="lg:hidden font-bold text-white tracking-tight text-sm sm:text-base">
                 TJ AI <span className="text-[#20bbe3]">SOLUTIONS</span>
              </span>
 
-             <div className="hidden md:flex flex-col relative" ref={searchRef}>
-              <div className="flex items-center w-64 lg:w-96 bg-[#1e2e41] rounded-lg px-4 py-2 border border-[#1687cb]/10 focus-within:border-[#20bbe3]/50 transition-colors">
-                <Search size={18} className="text-slate-400" />
+             <div className="flex-1 lg:flex-none flex flex-col relative max-w-md ml-auto lg:ml-0" ref={searchRef}>
+              <div className="flex items-center w-full lg:w-96 bg-[#1e2e41] rounded-lg px-3 py-2 border border-[#1687cb]/10 focus-within:border-[#20bbe3]/50 transition-colors">
+                <Search size={18} className="text-slate-400 shrink-0" />
                 <input 
                   type="text" 
                   placeholder="Buscar..." 
-                  className="bg-transparent border-none outline-none text-sm ml-3 w-full text-white placeholder-slate-500"
+                  className="bg-transparent border-none outline-none text-sm ml-2 w-full text-white placeholder-slate-500"
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
@@ -628,7 +628,7 @@ const App: React.FC = () => {
                   onFocus={() => setShowSearchResults(searchQuery.length > 0)}
                 />
                 {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="text-slate-500 hover:text-white">
+                  <button onClick={() => setSearchQuery('')} className="text-slate-500 hover:text-white shrink-0">
                     <X size={16} />
                   </button>
                 )}
@@ -636,7 +636,7 @@ const App: React.FC = () => {
 
               {/* Search Results Dropdown */}
               {showSearchResults && (
-                <div className="absolute top-full mt-2 w-full bg-[#1e2e41] border border-[#1687cb]/30 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="absolute top-full mt-2 w-full bg-[#1e2e41] border border-[#1687cb]/30 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 left-0">
                   <div className="p-2">
                     {filteredProjectsSearch.length === 0 && filteredClientsSearch.length === 0 ? (
                         <div className="p-4 text-center text-slate-500 text-sm">
@@ -693,23 +693,23 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 lg:gap-4 ml-auto">
+          <div className="flex items-center gap-3 lg:gap-4 ml-3 lg:ml-auto shrink-0">
             <button className="relative p-2 text-slate-400 hover:text-white transition-colors">
               <Bell size={20} />
               <span className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
             </button>
             <div className="flex items-center gap-3 pl-3 lg:pl-4 border-l border-[#1687cb]/20">
-              <div className="text-right hidden lg:block">
+              <div className="text-right hidden xl:block">
                 <p className="text-sm font-bold text-white">{currentUser.name}</p>
                 <p className="text-xs text-[#20bbe3]">{currentUser.role}</p>
               </div>
-              <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-tr from-[#1687cb] to-[#20bbe3] p-[1px] cursor-pointer" onClick={() => setView('SETTINGS')}>
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-tr from-[#1687cb] to-[#20bbe3] p-[1px] cursor-pointer" onClick={() => setView('SETTINGS')}>
                 <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full rounded-full bg-[#111623] object-cover" />
               </div>
               
               <button 
                 onClick={handleLogout}
-                className="ml-1 md:ml-2 p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                className="ml-1 md:ml-2 p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors hidden sm:block"
                 title="Sair do Sistema"
               >
                   <LogOut size={20} />
