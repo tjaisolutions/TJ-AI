@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, Users, FolderKanban, FileText, Wallet, BarChart3, Settings, CalendarDays, Video, FileBarChart, Banknote, X, Cloud, CloudOff } from 'lucide-react';
+import { LayoutDashboard, Users, FolderKanban, FileText, Wallet, BarChart3, Settings, CalendarDays, FileBarChart, Banknote, X, Cloud, CloudOff } from 'lucide-react';
 import { ViewState, User } from '../types';
 import { dataService } from '../services/dataService';
 
@@ -17,7 +17,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser, is
     { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'REPORTS', label: 'Relatórios', icon: FileBarChart },
     { id: 'AGENDA', label: 'Agenda', icon: CalendarDays },
-    { id: 'MEETING_ROOM', label: 'Sala de Reunião', icon: Video },
     { id: 'CRM', label: 'CRM & Leads', icon: BarChart3 },
     { id: 'PROJECTS', label: 'Projetos', icon: FolderKanban },
     { id: 'CLIENTS', label: 'Clientes', icon: Users },
