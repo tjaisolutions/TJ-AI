@@ -4,6 +4,8 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 
 dotenv.config();
 
@@ -12,6 +14,17 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Cria o servidor HTTP combinando Express
+const httpServer = createServer(app);
+
+// Configura o Socket.io no mesmo servidor
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*", // Em produção, configure isso para o domínio do seu site
+    methods: ["GET", "POST"]
+  }
+});
 
 // Middleware
 app.use(cors());
@@ -24,10 +37,10 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Initialize Database Table (Key-Value Store style)
+// Initialize Database Table
 const initDb = async () => {
   if (!process.env.DATABASE_URL) {
-    console.warn("⚠️ DATABASE_URL not found. Running in memory-only mode (data will be lost on restart).");
+    console.warn("⚠️ DATABASE_URL not found. Running in memory-only mode.");
     return;
   }
   try {
@@ -46,25 +59,39 @@ const initDb = async () => {
 
 initDb();
 
+// --- SOCKET.IO LOGIC ---
+io.on('connection', (socket) => {
+  console.log(`User connected: ${socket.id}`);
+
+  // Entrar em uma sala (fixa por enquanto, 'meeting-room-1')
+  socket.on('join-room', (roomId, userId) => {
+    socket.join(roomId);
+    // Avisa os outros que alguém entrou
+    socket.to(roomId).emit('user-connected', userId);
+  });
+
+  // Sinalização para saída
+  socket.on('disconnect', () => {
+    console.log('User disconnected');
+    io.emit('user-disconnected', socket.id);
+  });
+});
+
 // API Routes
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', mode: process.env.DATABASE_URL ? 'cloud' : 'memory' });
 });
 
-// Generic GET for any resource collection (users, projects, etc)
 app.get('/api/:key', async (req, res) => {
   const { key } = req.params;
-  
-  if (!process.env.DATABASE_URL) {
-    return res.json([]); // Fallback empty if no DB
-  }
+  if (!process.env.DATABASE_URL) return res.json([]);
 
   try {
     const result = await pool.query('SELECT value FROM app_data WHERE key = $1', [key]);
     if (result.rows.length > 0) {
       res.json(result.rows[0].value);
     } else {
-      res.json([]); // Default to empty array if not found
+      res.json([]);
     }
   } catch (err) {
     console.error(`Error fetching ${key}:`, err);
@@ -72,13 +99,11 @@ app.get('/api/:key', async (req, res) => {
   }
 });
 
-// Generic POST to save any resource collection
 app.post('/api/:key', async (req, res) => {
   const { key } = req.params;
   const data = req.body;
 
   if (!process.env.DATABASE_URL) {
-    console.log(`[Memory Mode] Saved ${key} (${Array.isArray(data) ? data.length : 1} items)`);
     return res.json({ success: true, mode: 'memory' });
   }
 
@@ -97,14 +122,14 @@ app.post('/api/:key', async (req, res) => {
   }
 });
 
-// Serve Static Files (The React App)
+// Serve Static Files
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// Handle React Routing, return all requests to React app
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => {
+// Use httpServer.listen ao invés de app.listen para funcionar o WebSocket
+httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
