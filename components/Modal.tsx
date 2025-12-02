@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { X } from 'lucide-react';
 
@@ -13,14 +14,14 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-[#1e2e41] w-full max-w-lg rounded-2xl border border-[#1687cb]/30 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-[#1e2e41] w-[95%] sm:w-full max-w-lg rounded-2xl border border-[#1687cb]/30 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="flex justify-between items-center p-4 border-b border-[#1687cb]/20 bg-[#111623]/50">
-          <h3 className="text-xl font-bold text-white">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <h3 className="text-xl font-bold text-white line-clamp-1">{title}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors shrink-0 ml-2">
             <X size={20} />
           </button>
         </div>
-        <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+        <div className="p-4 sm:p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
           {children}
         </div>
         <div className="p-4 border-t border-[#1687cb]/20 bg-[#111623]/30 flex justify-end gap-3">
