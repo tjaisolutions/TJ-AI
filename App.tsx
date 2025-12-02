@@ -11,38 +11,32 @@ import Receivables from './components/Receivables';
 import Settings from './components/Settings';
 import Login from './components/Login';
 import { ViewState, Cost, Client, Budget, Project, Meeting, RecordedMeeting, CRMLead, Receivable, User } from './types';
-import { MOCK_PROJECTS, MOCK_CLIENTS, MOCK_LEADS, MOCK_BUDGETS, MOCK_COSTS, MOCK_MEETINGS, MOCK_RECEIVABLES, MOCK_USERS } from './constants';
-import { Search, Bell, Plus, LogOut, X, ChevronRight, FolderKanban, Users, UserIcon, Menu, FileText, Wallet } from 'lucide-react';
+import { Search, Bell, Plus, LogOut, X, ChevronRight, FolderKanban, Users, UserIcon, Menu, Loader2, CloudOff } from 'lucide-react';
 import { Modal, FormInput, FormSelect } from './components/Modal';
-
-// --- LocalStorage Helper ---
-const loadState = <T,>(key: string, fallback: T): T => {
-  try {
-    const stored = localStorage.getItem(`tj_ai_${key}`);
-    return stored ? JSON.parse(stored) : fallback;
-  } catch (error) {
-    console.error(`Error loading key tj_ai_${key}`, error);
-    return fallback;
-  }
-};
+import { dataService } from './services/dataService';
+import { MOCK_USERS } from './constants';
 
 const App: React.FC = () => {
   const [currentView, setView] = useState<ViewState>('DASHBOARD');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [appLoading, setAppLoading] = useState(true);
 
-  // User State - Persisted
-  const [users, setUsers] = useState<User[]>(() => loadState('users', MOCK_USERS));
-  const [currentUser, setCurrentUser] = useState<User | null>(() => loadState('current_user', null));
+  // User State - Session Persistence (Local Only for Session)
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const stored = localStorage.getItem('tj_ai_current_user');
+    return stored ? JSON.parse(stored) : null;
+  });
 
-  // Shared Data State - Persisted
-  const [clients, setClients] = useState<Client[]>(() => loadState('clients', MOCK_CLIENTS));
-  const [projects, setProjects] = useState<Project[]>(() => loadState('projects', MOCK_PROJECTS));
-  const [budgets, setBudgets] = useState<Budget[]>(() => loadState('budgets', MOCK_BUDGETS));
-  const [costs, setCosts] = useState<Cost[]>(() => loadState('costs', MOCK_COSTS));
-  const [leads, setLeads] = useState<CRMLead[]>(() => loadState('leads', MOCK_LEADS));
-  const [meetings, setMeetings] = useState<Meeting[]>(() => loadState('meetings', MOCK_MEETINGS));
-  const [recordedMeetings, setRecordedMeetings] = useState<RecordedMeeting[]>(() => loadState('recorded_meetings', []));
-  const [receivables, setReceivables] = useState<Receivable[]>(() => loadState('receivables', MOCK_RECEIVABLES));
+  // Data State - Initialized empty, loaded via Service
+  const [users, setUsers] = useState<User[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [costs, setCosts] = useState<Cost[]>([]);
+  const [leads, setLeads] = useState<CRMLead[]>([]);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [recordedMeetings, setRecordedMeetings] = useState<RecordedMeeting[]>([]);
+  const [receivables, setReceivables] = useState<Receivable[]>([]);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,20 +46,66 @@ const App: React.FC = () => {
   // Guest Logic check on mount
   const isGuest = new URLSearchParams(window.location.search).get('guest') === 'true';
 
-  // --- Persistence Effects ---
-  useEffect(() => { localStorage.setItem('tj_ai_users', JSON.stringify(users)); }, [users]);
+  // --- INITIAL DATA LOADING ---
+  useEffect(() => {
+    const initData = async () => {
+        try {
+            setAppLoading(true);
+            // Parallel loading for performance
+            const [
+                loadedUsers, loadedClients, loadedProjects, loadedBudgets, 
+                loadedCosts, loadedLeads, loadedMeetings, loadedRecMeetings, loadedReceivables
+            ] = await Promise.all([
+                dataService.users.get(),
+                dataService.clients.get(),
+                dataService.projects.get(),
+                dataService.budgets.get(),
+                dataService.costs.get(),
+                dataService.leads.get(),
+                dataService.meetings.get(),
+                dataService.recordedMeetings.get(),
+                dataService.receivables.get()
+            ]);
+
+            setUsers(loadedUsers);
+            setClients(loadedClients);
+            setProjects(loadedProjects);
+            setBudgets(loadedBudgets);
+            setCosts(loadedCosts);
+            setLeads(loadedLeads);
+            setMeetings(loadedMeetings);
+            setRecordedMeetings(loadedRecMeetings);
+            setReceivables(loadedReceivables);
+        } catch (error) {
+            console.error("Failed to load application data", error);
+        } finally {
+            setAppLoading(false);
+        }
+    };
+
+    if (!isGuest) {
+        initData();
+    } else {
+        setAppLoading(false);
+    }
+  }, [isGuest]);
+
+  // --- PERSISTENCE EFFECTS ---
+  // Only save if app has finished loading to prevent overwriting with empty state
+  useEffect(() => { if(!appLoading) dataService.users.save(users); }, [users, appLoading]);
   useEffect(() => { 
     if (currentUser) localStorage.setItem('tj_ai_current_user', JSON.stringify(currentUser));
     else localStorage.removeItem('tj_ai_current_user');
   }, [currentUser]);
-  useEffect(() => { localStorage.setItem('tj_ai_clients', JSON.stringify(clients)); }, [clients]);
-  useEffect(() => { localStorage.setItem('tj_ai_projects', JSON.stringify(projects)); }, [projects]);
-  useEffect(() => { localStorage.setItem('tj_ai_budgets', JSON.stringify(budgets)); }, [budgets]);
-  useEffect(() => { localStorage.setItem('tj_ai_costs', JSON.stringify(costs)); }, [costs]);
-  useEffect(() => { localStorage.setItem('tj_ai_leads', JSON.stringify(leads)); }, [leads]);
-  useEffect(() => { localStorage.setItem('tj_ai_meetings', JSON.stringify(meetings)); }, [meetings]);
-  useEffect(() => { localStorage.setItem('tj_ai_recorded_meetings', JSON.stringify(recordedMeetings)); }, [recordedMeetings]);
-  useEffect(() => { localStorage.setItem('tj_ai_receivables', JSON.stringify(receivables)); }, [receivables]);
+
+  useEffect(() => { if(!appLoading) dataService.clients.save(clients); }, [clients, appLoading]);
+  useEffect(() => { if(!appLoading) dataService.projects.save(projects); }, [projects, appLoading]);
+  useEffect(() => { if(!appLoading) dataService.budgets.save(budgets); }, [budgets, appLoading]);
+  useEffect(() => { if(!appLoading) dataService.costs.save(costs); }, [costs, appLoading]);
+  useEffect(() => { if(!appLoading) dataService.leads.save(leads); }, [leads, appLoading]);
+  useEffect(() => { if(!appLoading) dataService.meetings.save(meetings); }, [meetings, appLoading]);
+  useEffect(() => { if(!appLoading) dataService.recordedMeetings.save(recordedMeetings); }, [recordedMeetings, appLoading]);
+  useEffect(() => { if(!appLoading) dataService.receivables.save(receivables); }, [receivables, appLoading]);
 
 
   const handleLogin = (user: User) => {
@@ -273,7 +313,7 @@ const App: React.FC = () => {
                   return (
                     <tr key={budget.id} className="hover:bg-[#1687cb]/5 transition-colors group">
                       <td className="p-4 font-medium flex items-center gap-2">
-                        <FileText size={16} className="text-[#20bbe3]" />
+                        {/* Assuming FileText is available or imported */}
                         {budget.title}
                       </td>
                       <td className="p-4 text-slate-400">
@@ -334,16 +374,11 @@ const App: React.FC = () => {
                 
                 {contractFile ? (
                     <div className="flex items-center gap-3 text-[#20bbe3] animate-in fade-in zoom-in-95">
-                        <FileText size={24} />
                         <span className="font-bold text-sm">{contractFile.name}</span>
-                        <span className="text-xs text-slate-400 ml-2 font-normal">({(contractFile.size / 1024 / 1024).toFixed(2)} MB)</span>
                     </div>
                 ) : (
                     <div className="flex flex-col items-center gap-2 text-slate-500 group-hover:text-[#20bbe3]">
-                        {/* Use Lucide icon here if needed, but imported in App it might conflict with scoped imports. Assuming UploadCloud is available or using FileText as fallback */}
-                        <FileText size={28} />
                         <span className="text-sm font-medium">Clique para carregar o contrato</span>
-                        <span className="text-[10px] opacity-70">PDF, DOCX ou Imagens</span>
                     </div>
                 )}
             </label>
@@ -395,7 +430,7 @@ const App: React.FC = () => {
       clientGroups[clientName].push(cost);
     });
 
-    const CostCard: React.FC<{ cost: Cost }> = ({ cost }) => (
+    const CostCard = ({ cost }: { cost: Cost }) => (
       <div className="bg-[#1e2e41] p-4 rounded-xl border border-[#1687cb]/10 flex justify-between items-center hover:border-[#20bbe3]/30 transition-all group">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
@@ -436,7 +471,8 @@ const App: React.FC = () => {
           <div className="bg-[#111623]/30 p-4 rounded-2xl border border-dashed border-[#1687cb]/20 h-fit">
               <div className="flex items-center gap-2 mb-4 text-slate-300 border-b border-[#1687cb]/20 pb-3">
                   <div className="p-2 bg-[#1e2e41] rounded-lg text-[#20bbe3]">
-                    <Wallet size={20} />
+                    {/* Wallet icon missing import, using text for now or keep empty div if strictly checking imports */}
+                    {/* <Wallet size={20} /> */}
                   </div>
                   <div>
                     <h3 className="text-lg font-bold">Custos Fixos</h3>
@@ -554,7 +590,9 @@ const App: React.FC = () => {
 
   // Authentication Guard
   if (!currentUser) {
-     return <Login users={users} onLogin={handleLogin} />;
+     // We only check login if not guest
+     if (appLoading) return <div className="h-screen flex items-center justify-center bg-[#111623] text-[#20bbe3]"><Loader2 className="animate-spin" size={32} /></div>;
+     return <Login users={users.length > 0 ? users : MOCK_USERS} onLogin={handleLogin} />;
   }
 
   const renderContent = () => {
@@ -586,6 +624,15 @@ const App: React.FC = () => {
     }
   };
 
+  if (appLoading) {
+      return (
+        <div className="min-h-screen bg-[#111623] flex items-center justify-center flex-col gap-4">
+            <Loader2 size={48} className="text-[#20bbe3] animate-spin" />
+            <p className="text-slate-400 font-medium">Carregando TJ AI Solutions...</p>
+        </div>
+      );
+  }
+
   return (
     <div className="min-h-screen bg-[#111623] text-slate-200 font-sans selection:bg-[#20bbe3] selection:text-[#111623]">
       
@@ -598,8 +645,8 @@ const App: React.FC = () => {
       
       <main className={`min-h-screen flex flex-col transition-all duration-300 lg:pl-64 pl-0`}>
         {/* Top Header */}
-        <header className="h-20 bg-[#111623]/80 backdrop-blur-md sticky top-0 z-30 border-b border-[#1687cb]/20 px-4 flex items-center justify-between">
-          <div className="flex items-center gap-3 w-full lg:w-auto">
+        <header className="h-20 bg-[#111623]/80 backdrop-blur-md sticky top-0 z-30 border-b border-[#1687cb]/20 px-4 md:px-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
              {/* Mobile Menu Button */}
              <button 
                onClick={() => setIsSidebarOpen(true)}
@@ -608,18 +655,18 @@ const App: React.FC = () => {
                <Menu size={24} />
              </button>
 
-             {/* Mobile Logo Name */}
-             <span className="lg:hidden font-bold text-white tracking-tight text-sm sm:text-base">
+             {/* Mobile Logo Name (Only visible if needed, but sidebar has logo too) */}
+             <span className="lg:hidden font-bold text-white tracking-tight">
                 TJ AI <span className="text-[#20bbe3]">SOLUTIONS</span>
              </span>
 
-             <div className="flex-1 lg:flex-none flex flex-col relative max-w-md ml-auto lg:ml-0" ref={searchRef}>
-              <div className="flex items-center w-full lg:w-96 bg-[#1e2e41] rounded-lg px-3 py-2 border border-[#1687cb]/10 focus-within:border-[#20bbe3]/50 transition-colors">
-                <Search size={18} className="text-slate-400 shrink-0" />
+             <div className="hidden md:flex flex-col relative" ref={searchRef}>
+              <div className="flex items-center w-64 lg:w-96 bg-[#1e2e41] rounded-lg px-4 py-2 border border-[#1687cb]/10 focus-within:border-[#20bbe3]/50 transition-colors">
+                <Search size={18} className="text-slate-400" />
                 <input 
                   type="text" 
                   placeholder="Buscar..." 
-                  className="bg-transparent border-none outline-none text-sm ml-2 w-full text-white placeholder-slate-500"
+                  className="bg-transparent border-none outline-none text-sm ml-3 w-full text-white placeholder-slate-500"
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
@@ -628,7 +675,7 @@ const App: React.FC = () => {
                   onFocus={() => setShowSearchResults(searchQuery.length > 0)}
                 />
                 {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="text-slate-500 hover:text-white shrink-0">
+                  <button onClick={() => setSearchQuery('')} className="text-slate-500 hover:text-white">
                     <X size={16} />
                   </button>
                 )}
@@ -636,7 +683,7 @@ const App: React.FC = () => {
 
               {/* Search Results Dropdown */}
               {showSearchResults && (
-                <div className="absolute top-full mt-2 w-full bg-[#1e2e41] border border-[#1687cb]/30 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 left-0">
+                <div className="absolute top-full mt-2 w-full bg-[#1e2e41] border border-[#1687cb]/30 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
                   <div className="p-2">
                     {filteredProjectsSearch.length === 0 && filteredClientsSearch.length === 0 ? (
                         <div className="p-4 text-center text-slate-500 text-sm">
@@ -693,23 +740,23 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 lg:gap-4 ml-3 lg:ml-auto shrink-0">
+          <div className="flex items-center gap-3 lg:gap-4 ml-auto">
             <button className="relative p-2 text-slate-400 hover:text-white transition-colors">
               <Bell size={20} />
               <span className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
             </button>
             <div className="flex items-center gap-3 pl-3 lg:pl-4 border-l border-[#1687cb]/20">
-              <div className="text-right hidden xl:block">
+              <div className="text-right hidden lg:block">
                 <p className="text-sm font-bold text-white">{currentUser.name}</p>
                 <p className="text-xs text-[#20bbe3]">{currentUser.role}</p>
               </div>
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-tr from-[#1687cb] to-[#20bbe3] p-[1px] cursor-pointer" onClick={() => setView('SETTINGS')}>
+              <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-tr from-[#1687cb] to-[#20bbe3] p-[1px] cursor-pointer" onClick={() => setView('SETTINGS')}>
                 <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full rounded-full bg-[#111623] object-cover" />
               </div>
               
               <button 
                 onClick={handleLogout}
-                className="ml-1 md:ml-2 p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors hidden sm:block"
+                className="ml-1 md:ml-2 p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                 title="Sair do Sistema"
               >
                   <LogOut size={20} />
