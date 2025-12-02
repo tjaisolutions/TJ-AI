@@ -66,8 +66,17 @@ io.on('connection', (socket) => {
   // Entrar em uma sala (fixa por enquanto, 'meeting-room-1')
   socket.on('join-room', (roomId, userId) => {
     socket.join(roomId);
-    // Avisa os outros que alguém entrou
-    socket.to(roomId).emit('user-connected', userId);
+    // Avisa os outros que alguém entrou (para iniciar a conexão WebRTC)
+    socket.to(roomId).emit('user-connected', socket.id);
+  });
+
+  // Sinalização WebRTC (Offer, Answer, ICE Candidates)
+  socket.on('signal', (data) => {
+    // Retransmite o sinal para o destinatário específico ou broadcast na sala
+    io.to(data.target).emit('signal', {
+      sender: socket.id,
+      signal: data.signal
+    });
   });
 
   // Sinalização para saída
