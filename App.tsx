@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -11,25 +12,36 @@ import Settings from './components/Settings';
 import Login from './components/Login';
 import { ViewState, Cost, Client, Budget, Project, Meeting, RecordedMeeting, CRMLead, Receivable, User } from './types';
 import { MOCK_PROJECTS, MOCK_CLIENTS, MOCK_LEADS, MOCK_BUDGETS, MOCK_COSTS, MOCK_MEETINGS, MOCK_RECEIVABLES, MOCK_USERS } from './constants';
-import { Search, Bell, UserCircle, Plus, Briefcase, Building2, Tag, FileText, UploadCloud, User as UserIcon, LogOut, X, ChevronRight, FolderKanban, Users } from 'lucide-react';
+import { Search, Bell, Plus, LogOut, X, ChevronRight, FolderKanban, Users, UserIcon } from 'lucide-react';
 import { Modal, FormInput, FormSelect } from './components/Modal';
+
+// --- LocalStorage Helper ---
+const loadState = <T,>(key: string, fallback: T): T => {
+  try {
+    const stored = localStorage.getItem(`tj_ai_${key}`);
+    return stored ? JSON.parse(stored) : fallback;
+  } catch (error) {
+    console.error(`Error loading key tj_ai_${key}`, error);
+    return fallback;
+  }
+};
 
 const App: React.FC = () => {
   const [currentView, setView] = useState<ViewState>('DASHBOARD');
 
-  // User State
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // User State - Persisted
+  const [users, setUsers] = useState<User[]>(() => loadState('users', MOCK_USERS));
+  const [currentUser, setCurrentUser] = useState<User | null>(() => loadState('current_user', null));
 
-  // Shared Data State
-  const [clients, setClients] = useState<Client[]>(MOCK_CLIENTS);
-  const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS);
-  const [budgets, setBudgets] = useState<Budget[]>(MOCK_BUDGETS);
-  const [costs, setCosts] = useState<Cost[]>(MOCK_COSTS);
-  const [leads, setLeads] = useState<CRMLead[]>(MOCK_LEADS);
-  const [meetings, setMeetings] = useState<Meeting[]>(MOCK_MEETINGS);
-  const [recordedMeetings, setRecordedMeetings] = useState<RecordedMeeting[]>([]);
-  const [receivables, setReceivables] = useState<Receivable[]>(MOCK_RECEIVABLES);
+  // Shared Data State - Persisted
+  const [clients, setClients] = useState<Client[]>(() => loadState('clients', MOCK_CLIENTS));
+  const [projects, setProjects] = useState<Project[]>(() => loadState('projects', MOCK_PROJECTS));
+  const [budgets, setBudgets] = useState<Budget[]>(() => loadState('budgets', MOCK_BUDGETS));
+  const [costs, setCosts] = useState<Cost[]>(() => loadState('costs', MOCK_COSTS));
+  const [leads, setLeads] = useState<CRMLead[]>(() => loadState('leads', MOCK_LEADS));
+  const [meetings, setMeetings] = useState<Meeting[]>(() => loadState('meetings', MOCK_MEETINGS));
+  const [recordedMeetings, setRecordedMeetings] = useState<RecordedMeeting[]>(() => loadState('recorded_meetings', []));
+  const [receivables, setReceivables] = useState<Receivable[]>(() => loadState('receivables', MOCK_RECEIVABLES));
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,6 +50,22 @@ const App: React.FC = () => {
 
   // Guest Logic check on mount
   const isGuest = new URLSearchParams(window.location.search).get('guest') === 'true';
+
+  // --- Persistence Effects ---
+  useEffect(() => { localStorage.setItem('tj_ai_users', JSON.stringify(users)); }, [users]);
+  useEffect(() => { 
+    if (currentUser) localStorage.setItem('tj_ai_current_user', JSON.stringify(currentUser));
+    else localStorage.removeItem('tj_ai_current_user');
+  }, [currentUser]);
+  useEffect(() => { localStorage.setItem('tj_ai_clients', JSON.stringify(clients)); }, [clients]);
+  useEffect(() => { localStorage.setItem('tj_ai_projects', JSON.stringify(projects)); }, [projects]);
+  useEffect(() => { localStorage.setItem('tj_ai_budgets', JSON.stringify(budgets)); }, [budgets]);
+  useEffect(() => { localStorage.setItem('tj_ai_costs', JSON.stringify(costs)); }, [costs]);
+  useEffect(() => { localStorage.setItem('tj_ai_leads', JSON.stringify(leads)); }, [leads]);
+  useEffect(() => { localStorage.setItem('tj_ai_meetings', JSON.stringify(meetings)); }, [meetings]);
+  useEffect(() => { localStorage.setItem('tj_ai_recorded_meetings', JSON.stringify(recordedMeetings)); }, [recordedMeetings]);
+  useEffect(() => { localStorage.setItem('tj_ai_receivables', JSON.stringify(receivables)); }, [receivables]);
+
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
@@ -119,6 +147,11 @@ const App: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {clients.length === 0 && (
+             <div className="col-span-full text-center py-10 text-slate-500 border-2 border-dashed border-[#1687cb]/20 rounded-2xl">
+                Nenhum cliente cadastrado. Clique em "Novo Cliente" para começar.
+             </div>
+          )}
           {clients.map(client => (
             <div key={client.id} className="bg-[#1e2e41] p-6 rounded-2xl border border-[#1687cb]/10 flex flex-col items-center text-center hover:border-[#20bbe3]/30 transition-all group relative">
               <div className="relative">
@@ -229,6 +262,9 @@ const App: React.FC = () => {
               </tr>
             </thead>
             <tbody className="text-slate-200 divide-y divide-[#1687cb]/10">
+              {budgets.length === 0 && (
+                 <tr><td colSpan={6} className="p-4 text-center text-slate-500 italic">Nenhum contrato cadastrado.</td></tr>
+              )}
               {budgets.map(budget => {
                  const client = clients.find(c => c.id === budget.clientId);
                  return (
