@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { Project, ProjectPhase, User } from '../types';
-import { Calendar, CheckCircle2, Circle, Clock, Sparkles, Pencil, Save, X, Plus, ClipboardList, CheckSquare, User as UserIcon } from 'lucide-react';
+import { Calendar, CheckCircle2, Circle, Clock, Sparkles, Pencil, Save, X, Plus, ClipboardList, CheckSquare, User as UserIcon, Trash2 } from 'lucide-react';
 import { generateInsight } from '../services/geminiService';
 
 interface ProjectsProps {
@@ -68,6 +67,15 @@ const Projects: React.FC<ProjectsProps> = ({ projects, setProjects, currentUser 
     };
     setProjects([newProject, ...projects]);
     startEditing(newProject);
+  };
+
+  const handleDeleteProject = (projectId: string) => {
+    if (window.confirm("Tem certeza que deseja excluir este projeto? Esta ação não pode ser desfeita.")) {
+      setProjects(prev => prev.filter(p => p.id !== projectId));
+      if (editingId === projectId) {
+        cancelEditing();
+      }
+    }
   };
 
   const handleAiAnalysis = async (project: Project) => {
@@ -201,6 +209,13 @@ const Projects: React.FC<ProjectsProps> = ({ projects, setProjects, currentUser 
                         title="Editar Projeto"
                       >
                         <Pencil size={18} />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteProject(project.id)}
+                        className="text-slate-400 hover:text-red-400 p-2 hover:bg-[#111623] rounded-lg transition-colors"
+                        title="Excluir Projeto"
+                      >
+                        <Trash2 size={18} />
                       </button>
                     </>
                   )}
