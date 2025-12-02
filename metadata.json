@@ -1,0 +1,8 @@
+{
+  "name": "TJ AI SOLUTIONS",
+  "description": "Sistema completo de gestão de projetos SaaS, CRM e Financeiro com integração de IA.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
