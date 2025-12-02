@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Project, ProjectPhase, User } from '../types';
 import { Calendar, CheckCircle2, Circle, Clock, Sparkles, Pencil, Save, X, Plus, ClipboardList, CheckSquare, User as UserIcon, Trash2 } from 'lucide-react';
@@ -148,10 +149,11 @@ const Projects: React.FC<ProjectsProps> = ({ projects, setProjects, currentUser 
         <h2 className="text-3xl font-bold text-white">Gestão de Projetos</h2>
         <button 
             onClick={handleAddProject}
-            className="bg-[#20bbe3] hover:bg-[#1687cb] text-[#111623] px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 shadow-lg shadow-[#20bbe3]/20 active:scale-95"
+            className="bg-[#20bbe3] hover:bg-[#1687cb] text-[#111623] px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 shadow-lg shadow-[#20bbe3]/20 active:scale-95 text-sm sm:text-base"
         >
            <Plus size={18} />
-           Novo Projeto
+           <span className="hidden sm:inline">Novo Projeto</span>
+           <span className="sm:hidden">Novo</span>
         </button>
       </div>
 
@@ -162,44 +164,44 @@ const Projects: React.FC<ProjectsProps> = ({ projects, setProjects, currentUser 
           const currentPhaseDetails = currentData.phaseDetails[currentData.phase] || { done: '', todo: '' };
 
           return (
-            <div key={project.id} className="bg-[#1e2e41] rounded-2xl p-6 border border-[#1687cb]/10 hover:border-[#20bbe3]/30 transition-all shadow-lg group relative">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-                <div className="flex-1 w-full md:w-auto">
+            <div key={project.id} className="bg-[#1e2e41] rounded-2xl p-4 sm:p-6 border border-[#1687cb]/10 hover:border-[#20bbe3]/30 transition-all shadow-lg group relative">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+                <div className="flex-1 w-full lg:w-auto">
                   {isEditing ? (
                     <input 
                       type="text" 
                       value={currentData.title}
                       onChange={(e) => updateEditForm('title', e.target.value)}
-                      className="text-xl font-bold text-white bg-[#111623] border border-[#1687cb]/30 rounded px-3 py-1 mb-1 focus:border-[#20bbe3] outline-none w-full md:w-auto"
+                      className="text-xl font-bold text-white bg-[#111623] border border-[#1687cb]/30 rounded px-3 py-1 mb-1 focus:border-[#20bbe3] outline-none w-full lg:w-auto"
                       placeholder="Nome do Projeto"
                     />
                   ) : (
-                    <h3 className="text-xl font-bold text-white group-hover:text-[#20bbe3] transition-colors">{project.title}</h3>
+                    <h3 className="text-xl font-bold text-white group-hover:text-[#20bbe3] transition-colors line-clamp-1">{project.title}</h3>
                   )}
                   <p className="text-slate-400 text-sm mt-1">{project.clientName}</p>
                 </div>
                 
-                <div className="flex items-center gap-3 mt-4 md:mt-0">
+                <div className="flex flex-wrap items-center gap-2 lg:gap-3 w-full lg:w-auto">
                   {isEditing ? (
                     <>
-                      <button onClick={saveEditing} className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30 transition-colors" title="Salvar">
-                        <Save size={20} />
+                      <button onClick={saveEditing} className="flex-1 lg:flex-none p-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30 transition-colors flex items-center justify-center gap-2" title="Salvar">
+                        <Save size={20} /> <span className="lg:hidden">Salvar</span>
                       </button>
-                      <button onClick={cancelEditing} className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors" title="Cancelar">
-                        <X size={20} />
+                      <button onClick={cancelEditing} className="flex-1 lg:flex-none p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors flex items-center justify-center gap-2" title="Cancelar">
+                        <X size={20} /> <span className="lg:hidden">Cancelar</span>
                       </button>
                     </>
                   ) : (
                     <>
                       <button 
                         onClick={() => handleAiAnalysis(project)}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-[#111623] border border-[#20bbe3]/30 text-[#20bbe3] rounded-lg text-xs hover:bg-[#20bbe3]/10 transition-colors"
+                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-3 py-2 lg:py-1.5 bg-[#111623] border border-[#20bbe3]/30 text-[#20bbe3] rounded-lg text-xs hover:bg-[#20bbe3]/10 transition-colors whitespace-nowrap"
                         disabled={loadingAi === project.id}
                       >
                         <Sparkles size={14} />
                         AI Insights
                       </button>
-                      <div className="flex items-center gap-2 text-slate-400 bg-[#111623] px-3 py-1.5 rounded-lg text-sm border border-[#1687cb]/20">
+                      <div className="flex items-center gap-2 text-slate-400 bg-[#111623] px-3 py-2 lg:py-1.5 rounded-lg text-sm border border-[#1687cb]/20 whitespace-nowrap">
                         <Calendar size={16} className="text-[#1687cb]" />
                         <span className="font-mono text-xs">{new Date(project.deadline).toLocaleDateString()}</span>
                       </div>
@@ -235,7 +237,7 @@ const Projects: React.FC<ProjectsProps> = ({ projects, setProjects, currentUser 
                               onChange={(e) => updateStatusReport('done', e.target.value)}
                           />
                       ) : (
-                          <p className="text-sm text-slate-300 min-h-[40px] whitespace-pre-line">{currentPhaseDetails.done || "N/A"}</p>
+                          <p className="text-sm text-slate-300 min-h-[40px] whitespace-pre-line break-words">{currentPhaseDetails.done || "N/A"}</p>
                       )}
                   </div>
                   <div>
@@ -249,12 +251,12 @@ const Projects: React.FC<ProjectsProps> = ({ projects, setProjects, currentUser 
                               onChange={(e) => updateStatusReport('todo', e.target.value)}
                           />
                       ) : (
-                          <p className="text-sm text-slate-300 min-h-[40px] whitespace-pre-line">{currentPhaseDetails.todo || "N/A"}</p>
+                          <p className="text-sm text-slate-300 min-h-[40px] whitespace-pre-line break-words">{currentPhaseDetails.todo || "N/A"}</p>
                       )}
                   </div>
               </div>
 
-              {/* Progress & Phases */}
+              {/* Progress & Phases - Scrollable on mobile */}
               <div className="space-y-4">
                   <div className="flex justify-between items-center text-sm text-slate-400">
                     <span>Progresso do Projeto</span>
@@ -267,7 +269,8 @@ const Projects: React.FC<ProjectsProps> = ({ projects, setProjects, currentUser 
                     />
                   </div>
                   
-                  <div className="grid grid-cols-4 gap-2 mt-4">
+                  {/* Timeline with horizontal scroll on mobile */}
+                  <div className="flex md:grid md:grid-cols-4 gap-2 mt-4 overflow-x-auto pb-2 md:pb-0 snap-x">
                     {phases.map((phase, idx) => {
                       const isActive = phase === currentData.phase;
                       const isPast = getPhaseIndex(currentData.phase) > idx;
@@ -276,7 +279,7 @@ const Projects: React.FC<ProjectsProps> = ({ projects, setProjects, currentUser 
                       return (
                         <div 
                           key={phase} 
-                          className={`relative p-3 rounded-lg border transition-all ${
+                          className={`relative p-3 rounded-lg border transition-all min-w-[140px] md:min-w-0 snap-center shrink-0 flex-1 ${
                             isActive 
                               ? 'bg-[#20bbe3]/10 border-[#20bbe3] text-white shadow-[0_0_10px_rgba(32,187,227,0.1)]' 
                               : isPast 
