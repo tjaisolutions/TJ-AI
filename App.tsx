@@ -12,7 +12,7 @@ import Settings from './components/Settings';
 import Login from './components/Login';
 import { ViewState, Cost, Client, Budget, Project, Meeting, RecordedMeeting, CRMLead, Receivable, User } from './types';
 import { MOCK_PROJECTS, MOCK_CLIENTS, MOCK_LEADS, MOCK_BUDGETS, MOCK_COSTS, MOCK_MEETINGS, MOCK_RECEIVABLES, MOCK_USERS } from './constants';
-import { Search, Bell, Plus, LogOut, X, ChevronRight, FolderKanban, Users, UserIcon } from 'lucide-react';
+import { Search, Bell, Plus, LogOut, X, ChevronRight, FolderKanban, Users, UserIcon, Menu } from 'lucide-react';
 import { Modal, FormInput, FormSelect } from './components/Modal';
 
 // --- LocalStorage Helper ---
@@ -28,6 +28,7 @@ const loadState = <T,>(key: string, fallback: T): T => {
 
 const App: React.FC = () => {
   const [currentView, setView] = useState<ViewState>('DASHBOARD');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // User State - Persisted
   const [users, setUsers] = useState<User[]>(() => loadState('users', MOCK_USERS));
@@ -103,6 +104,7 @@ const App: React.FC = () => {
     setView(view);
     setShowSearchResults(false);
     setSearchQuery('');
+    setIsSidebarOpen(false); // Close sidebar if open on mobile
   };
 
 
@@ -135,11 +137,11 @@ const App: React.FC = () => {
 
     return (
       <div className="space-y-6 animate-in fade-in">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold text-white">Clientes</h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white">Clientes</h2>
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="bg-[#20bbe3] hover:bg-[#1687cb] text-[#111623] px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 shadow-lg shadow-[#20bbe3]/20 active:scale-95"
+            className="w-full sm:w-auto bg-[#20bbe3] hover:bg-[#1687cb] text-[#111623] px-4 py-2 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-[#20bbe3]/20 active:scale-95"
           >
             <Plus size={18} />
             Novo Cliente
@@ -238,11 +240,11 @@ const App: React.FC = () => {
 
     return (
       <div className="space-y-6 animate-in fade-in">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold text-white">Orçamentos & Contratos</h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white">Orçamentos & Contratos</h2>
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="bg-[#20bbe3] hover:bg-[#1687cb] text-[#111623] px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 shadow-lg shadow-[#20bbe3]/20 active:scale-95"
+            className="w-full sm:w-auto bg-[#20bbe3] hover:bg-[#1687cb] text-[#111623] px-4 py-2 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-[#20bbe3]/20 active:scale-95"
           >
             <Plus size={18} />
             Novo Contrato
@@ -250,56 +252,58 @@ const App: React.FC = () => {
         </div>
         
         <div className="bg-[#1e2e41] rounded-2xl overflow-hidden border border-[#1687cb]/10">
-          <table className="w-full text-left border-collapse">
-            <thead className="bg-[#111623] text-slate-400 border-b border-[#1687cb]/20">
-              <tr>
-                <th className="p-4 font-semibold text-xs uppercase tracking-wider">Contrato / Título</th>
-                <th className="p-4 font-semibold text-xs uppercase tracking-wider">Cliente</th>
-                <th className="p-4 font-semibold text-xs uppercase tracking-wider">Duração</th>
-                <th className="p-4 font-semibold text-xs uppercase tracking-wider">Valor Global</th>
-                <th className="p-4 font-semibold text-xs uppercase tracking-wider">Status</th>
-                <th className="p-4 font-semibold text-xs uppercase tracking-wider">Criado Por</th>
-              </tr>
-            </thead>
-            <tbody className="text-slate-200 divide-y divide-[#1687cb]/10">
-              {budgets.length === 0 && (
-                 <tr><td colSpan={6} className="p-4 text-center text-slate-500 italic">Nenhum contrato cadastrado.</td></tr>
-              )}
-              {budgets.map(budget => {
-                 const client = clients.find(c => c.id === budget.clientId);
-                 return (
-                  <tr key={budget.id} className="hover:bg-[#1687cb]/5 transition-colors group">
-                    <td className="p-4 font-medium flex items-center gap-2">
-                       <FileText size={16} className="text-[#20bbe3]" />
-                       {budget.title}
-                    </td>
-                    <td className="p-4 text-slate-400">
-                      <div className="flex items-center gap-2">
-                         {client?.avatar && <img src={client.avatar} className="w-5 h-5 rounded-full" alt="" />}
-                         {client?.name || 'Desconhecido'}
-                      </div>
-                    </td>
-                    <td className="p-4 text-slate-400 text-sm">{budget.contractDuration}</td>
-                    <td className="p-4 text-[#20bbe3] font-bold">R$ {budget.amount.toLocaleString()}</td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
-                        budget.status === 'Approved' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
-                        budget.status === 'Sent' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' :
-                        'bg-slate-500/10 border-slate-500/30 text-slate-400'
-                      }`}>
-                        {budget.status === 'Draft' ? 'Rascunho' : 
-                         budget.status === 'Sent' ? 'Enviado' : 
-                         budget.status === 'Approved' ? 'Ativo' : 'Rejeitado'}
-                      </span>
-                    </td>
-                    <td className="p-4 text-sm text-slate-500 flex items-center gap-2">
-                         <UserIcon size={12} /> {budget.createdBy || 'Sistema'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[800px]">
+              <thead className="bg-[#111623] text-slate-400 border-b border-[#1687cb]/20">
+                <tr>
+                  <th className="p-4 font-semibold text-xs uppercase tracking-wider">Contrato / Título</th>
+                  <th className="p-4 font-semibold text-xs uppercase tracking-wider">Cliente</th>
+                  <th className="p-4 font-semibold text-xs uppercase tracking-wider">Duração</th>
+                  <th className="p-4 font-semibold text-xs uppercase tracking-wider">Valor Global</th>
+                  <th className="p-4 font-semibold text-xs uppercase tracking-wider">Status</th>
+                  <th className="p-4 font-semibold text-xs uppercase tracking-wider">Criado Por</th>
+                </tr>
+              </thead>
+              <tbody className="text-slate-200 divide-y divide-[#1687cb]/10">
+                {budgets.length === 0 && (
+                  <tr><td colSpan={6} className="p-4 text-center text-slate-500 italic">Nenhum contrato cadastrado.</td></tr>
+                )}
+                {budgets.map(budget => {
+                  const client = clients.find(c => c.id === budget.clientId);
+                  return (
+                    <tr key={budget.id} className="hover:bg-[#1687cb]/5 transition-colors group">
+                      <td className="p-4 font-medium flex items-center gap-2">
+                        <FileText size={16} className="text-[#20bbe3]" />
+                        {budget.title}
+                      </td>
+                      <td className="p-4 text-slate-400">
+                        <div className="flex items-center gap-2">
+                          {client?.avatar && <img src={client.avatar} className="w-5 h-5 rounded-full" alt="" />}
+                          {client?.name || 'Desconhecido'}
+                        </div>
+                      </td>
+                      <td className="p-4 text-slate-400 text-sm">{budget.contractDuration}</td>
+                      <td className="p-4 text-[#20bbe3] font-bold">R$ {budget.amount.toLocaleString()}</td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
+                          budget.status === 'Approved' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
+                          budget.status === 'Sent' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' :
+                          'bg-slate-500/10 border-slate-500/30 text-slate-400'
+                        }`}>
+                          {budget.status === 'Draft' ? 'Rascunho' : 
+                          budget.status === 'Sent' ? 'Enviado' : 
+                          budget.status === 'Approved' ? 'Ativo' : 'Rejeitado'}
+                        </span>
+                      </td>
+                      <td className="p-4 text-sm text-slate-500 flex items-center gap-2">
+                          <UserIcon size={12} /> {budget.createdBy || 'Sistema'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* New Budget Modal */}
@@ -336,7 +340,8 @@ const App: React.FC = () => {
                     </div>
                 ) : (
                     <div className="flex flex-col items-center gap-2 text-slate-500 group-hover:text-[#20bbe3]">
-                        <UploadCloud size={28} />
+                        {/* Use Lucide icon here if needed, but imported in App it might conflict with scoped imports. Assuming UploadCloud is available or using FileText as fallback */}
+                        <FileText size={28} />
                         <span className="text-sm font-medium">Clique para carregar o contrato</span>
                         <span className="text-[10px] opacity-70">PDF, DOCX ou Imagens</span>
                     </div>
@@ -394,21 +399,20 @@ const App: React.FC = () => {
       <div className="bg-[#1e2e41] p-4 rounded-xl border border-[#1687cb]/10 flex justify-between items-center hover:border-[#20bbe3]/30 transition-all group">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-               <h4 className="text-white font-bold group-hover:text-[#20bbe3] transition-colors">{cost.description}</h4>
+               <h4 className="text-white font-bold group-hover:text-[#20bbe3] transition-colors line-clamp-1">{cost.description}</h4>
                {cost.type === 'Project' && cost.projectName && (
-                  <span className="text-[10px] bg-[#1687cb]/20 text-[#20bbe3] px-2 py-0.5 rounded-full border border-[#1687cb]/30 flex items-center gap-1">
-                      <Tag size={10} />
+                  <span className="hidden sm:inline-flex text-[10px] bg-[#1687cb]/20 text-[#20bbe3] px-2 py-0.5 rounded-full border border-[#1687cb]/30 items-center gap-1">
                       {cost.projectName}
                   </span>
                )}
             </div>
-            <div className="flex items-center gap-3 text-slate-400 text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-slate-400 text-xs">
               <span className="bg-[#111623] px-2 py-0.5 rounded text-slate-500 border border-slate-800">{cost.category}</span> 
               <span>{new Date(cost.date).toLocaleDateString()}</span>
-              <span className="flex items-center gap-1 text-slate-500"><UserIcon size={10} /> {cost.createdBy}</span>
+              <span className="hidden sm:flex items-center gap-1 text-slate-500"><UserIcon size={10} /> {cost.createdBy}</span>
             </div>
           </div>
-          <div className="text-red-400 font-mono font-bold bg-red-500/10 px-3 py-1 rounded-lg border border-red-500/20">
+          <div className="text-red-400 font-mono font-bold bg-red-500/10 px-2 sm:px-3 py-1 rounded-lg border border-red-500/20 text-xs sm:text-sm whitespace-nowrap">
             - R$ {cost.amount.toLocaleString()}
           </div>
       </div>
@@ -416,27 +420,27 @@ const App: React.FC = () => {
 
     return (
       <div className="space-y-6 animate-in fade-in">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold text-white">Custos e Despesas</h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white">Custos e Despesas</h2>
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="bg-[#20bbe3] hover:bg-[#1687cb] text-[#111623] px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 shadow-lg shadow-[#20bbe3]/20 active:scale-95"
+            className="w-full sm:w-auto bg-[#20bbe3] hover:bg-[#1687cb] text-[#111623] px-4 py-2 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-[#20bbe3]/20 active:scale-95"
           >
             <Plus size={18} />
             Novo Custo
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
           {/* Fixed Costs Column */}
           <div className="bg-[#111623]/30 p-4 rounded-2xl border border-dashed border-[#1687cb]/20 h-fit">
               <div className="flex items-center gap-2 mb-4 text-slate-300 border-b border-[#1687cb]/20 pb-3">
                   <div className="p-2 bg-[#1e2e41] rounded-lg text-[#20bbe3]">
-                    <Building2 size={20} />
+                    <Wallet size={20} />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold">Custos Fixos</h3>
-                    <p className="text-xs text-slate-500">Despesas recorrentes e operacionais</p>
+                    <p className="text-xs text-slate-500">Despesas recorrentes</p>
                   </div>
                   <span className="ml-auto text-xs bg-[#1e2e41] px-2 py-1 rounded text-white">{fixedCosts.length}</span>
               </div>
@@ -450,7 +454,7 @@ const App: React.FC = () => {
           <div className="bg-[#111623]/30 p-4 rounded-2xl border border-dashed border-[#1687cb]/20 h-fit">
               <div className="flex items-center gap-2 mb-4 text-slate-300 border-b border-[#1687cb]/20 pb-3">
                   <div className="p-2 bg-[#1e2e41] rounded-lg text-[#1687cb]">
-                     <Briefcase size={20} />
+                     <FolderKanban size={20} />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold">Custos por Projeto</h3>
@@ -584,107 +588,128 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#111623] text-slate-200 font-sans selection:bg-[#20bbe3] selection:text-[#111623]">
-      <Sidebar currentView={currentView} setView={setView} />
       
-      <main className="pl-20 lg:pl-64 min-h-screen flex flex-col transition-all duration-300">
+      <Sidebar 
+        currentView={currentView} 
+        setView={setView} 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+      />
+      
+      <main className={`min-h-screen flex flex-col transition-all duration-300 lg:pl-64 pl-0`}>
         {/* Top Header */}
-        <header className="h-20 bg-[#111623]/80 backdrop-blur-md sticky top-0 z-40 border-b border-[#1687cb]/20 px-6 flex items-center justify-between">
-          <div className="hidden md:flex flex-col relative" ref={searchRef}>
-            <div className="flex items-center w-96 bg-[#1e2e41] rounded-lg px-4 py-2 border border-[#1687cb]/10 focus-within:border-[#20bbe3]/50 transition-colors">
-              <Search size={18} className="text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Buscar projetos ou clientes..." 
-                className="bg-transparent border-none outline-none text-sm ml-3 w-full text-white placeholder-slate-500"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setShowSearchResults(e.target.value.length > 0);
-                }}
-                onFocus={() => setShowSearchResults(searchQuery.length > 0)}
-              />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="text-slate-500 hover:text-white">
-                  <X size={16} />
-                </button>
+        <header className="h-20 bg-[#111623]/80 backdrop-blur-md sticky top-0 z-30 border-b border-[#1687cb]/20 px-4 md:px-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+             {/* Mobile Menu Button */}
+             <button 
+               onClick={() => setIsSidebarOpen(true)}
+               className="lg:hidden text-slate-400 hover:text-white"
+             >
+               <Menu size={24} />
+             </button>
+
+             {/* Mobile Logo Name (Only visible if needed, but sidebar has logo too) */}
+             <span className="lg:hidden font-bold text-white tracking-tight">
+                TJ AI <span className="text-[#20bbe3]">SOLUTIONS</span>
+             </span>
+
+             <div className="hidden md:flex flex-col relative" ref={searchRef}>
+              <div className="flex items-center w-64 lg:w-96 bg-[#1e2e41] rounded-lg px-4 py-2 border border-[#1687cb]/10 focus-within:border-[#20bbe3]/50 transition-colors">
+                <Search size={18} className="text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Buscar..." 
+                  className="bg-transparent border-none outline-none text-sm ml-3 w-full text-white placeholder-slate-500"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowSearchResults(e.target.value.length > 0);
+                  }}
+                  onFocus={() => setShowSearchResults(searchQuery.length > 0)}
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="text-slate-500 hover:text-white">
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+
+              {/* Search Results Dropdown */}
+              {showSearchResults && (
+                <div className="absolute top-full mt-2 w-full bg-[#1e2e41] border border-[#1687cb]/30 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                  <div className="p-2">
+                    {filteredProjectsSearch.length === 0 && filteredClientsSearch.length === 0 ? (
+                        <div className="p-4 text-center text-slate-500 text-sm">
+                          Nenhum resultado encontrado.
+                        </div>
+                    ) : (
+                        <>
+                          {filteredProjectsSearch.length > 0 && (
+                            <div className="mb-2">
+                              <div className="px-3 py-1 text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                                  <FolderKanban size={12} /> Projetos
+                              </div>
+                              {filteredProjectsSearch.slice(0, 3).map(p => (
+                                <div 
+                                    key={p.id} 
+                                    onClick={() => handleSearchResultClick('PROJECTS')}
+                                    className="px-3 py-2 hover:bg-[#111623] rounded-lg cursor-pointer group flex items-center justify-between"
+                                >
+                                    <div>
+                                      <p className="text-sm font-bold text-white group-hover:text-[#20bbe3]">{p.title}</p>
+                                      <p className="text-xs text-slate-500">{p.clientName}</p>
+                                    </div>
+                                    <ChevronRight size={14} className="text-slate-600 group-hover:text-[#20bbe3]" />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {filteredClientsSearch.length > 0 && (
+                            <div>
+                              <div className="px-3 py-1 text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                                  <Users size={12} /> Clientes
+                              </div>
+                              {filteredClientsSearch.slice(0, 3).map(c => (
+                                <div 
+                                    key={c.id} 
+                                    onClick={() => handleSearchResultClick('CLIENTS')}
+                                    className="px-3 py-2 hover:bg-[#111623] rounded-lg cursor-pointer group flex items-center justify-between"
+                                >
+                                    <div>
+                                      <p className="text-sm font-bold text-white group-hover:text-[#20bbe3]">{c.name}</p>
+                                      <p className="text-xs text-slate-500">{c.company}</p>
+                                    </div>
+                                    <ChevronRight size={14} className="text-slate-600 group-hover:text-[#20bbe3]" />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
-
-            {/* Search Results Dropdown */}
-            {showSearchResults && (
-              <div className="absolute top-full mt-2 w-96 bg-[#1e2e41] border border-[#1687cb]/30 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
-                <div className="p-2">
-                   {filteredProjectsSearch.length === 0 && filteredClientsSearch.length === 0 ? (
-                      <div className="p-4 text-center text-slate-500 text-sm">
-                        Nenhum resultado encontrado.
-                      </div>
-                   ) : (
-                      <>
-                        {filteredProjectsSearch.length > 0 && (
-                          <div className="mb-2">
-                             <div className="px-3 py-1 text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
-                                <FolderKanban size={12} /> Projetos
-                             </div>
-                             {filteredProjectsSearch.slice(0, 3).map(p => (
-                               <div 
-                                  key={p.id} 
-                                  onClick={() => handleSearchResultClick('PROJECTS')}
-                                  className="px-3 py-2 hover:bg-[#111623] rounded-lg cursor-pointer group flex items-center justify-between"
-                               >
-                                  <div>
-                                    <p className="text-sm font-bold text-white group-hover:text-[#20bbe3]">{p.title}</p>
-                                    <p className="text-xs text-slate-500">{p.clientName}</p>
-                                  </div>
-                                  <ChevronRight size={14} className="text-slate-600 group-hover:text-[#20bbe3]" />
-                               </div>
-                             ))}
-                          </div>
-                        )}
-
-                        {filteredClientsSearch.length > 0 && (
-                          <div>
-                             <div className="px-3 py-1 text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
-                                <Users size={12} /> Clientes
-                             </div>
-                             {filteredClientsSearch.slice(0, 3).map(c => (
-                               <div 
-                                  key={c.id} 
-                                  onClick={() => handleSearchResultClick('CLIENTS')}
-                                  className="px-3 py-2 hover:bg-[#111623] rounded-lg cursor-pointer group flex items-center justify-between"
-                               >
-                                  <div>
-                                    <p className="text-sm font-bold text-white group-hover:text-[#20bbe3]">{c.name}</p>
-                                    <p className="text-xs text-slate-500">{c.company}</p>
-                                  </div>
-                                  <ChevronRight size={14} className="text-slate-600 group-hover:text-[#20bbe3]" />
-                               </div>
-                             ))}
-                          </div>
-                        )}
-                      </>
-                   )}
-                </div>
-              </div>
-            )}
           </div>
 
-          <div className="flex items-center gap-4 ml-auto">
+          <div className="flex items-center gap-3 lg:gap-4 ml-auto">
             <button className="relative p-2 text-slate-400 hover:text-white transition-colors">
               <Bell size={20} />
               <span className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
             </button>
-            <div className="flex items-center gap-3 pl-4 border-l border-[#1687cb]/20">
-              <div className="text-right hidden md:block">
+            <div className="flex items-center gap-3 pl-3 lg:pl-4 border-l border-[#1687cb]/20">
+              <div className="text-right hidden lg:block">
                 <p className="text-sm font-bold text-white">{currentUser.name}</p>
                 <p className="text-xs text-[#20bbe3]">{currentUser.role}</p>
               </div>
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#1687cb] to-[#20bbe3] p-[1px] cursor-pointer" onClick={() => setView('SETTINGS')}>
+              <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-tr from-[#1687cb] to-[#20bbe3] p-[1px] cursor-pointer" onClick={() => setView('SETTINGS')}>
                 <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full rounded-full bg-[#111623] object-cover" />
               </div>
               
               <button 
                 onClick={handleLogout}
-                className="ml-2 p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                className="ml-1 md:ml-2 p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                 title="Sair do Sistema"
               >
                   <LogOut size={20} />
@@ -693,7 +718,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <div className="p-6 flex-1 overflow-auto custom-scrollbar">
+        <div className="p-4 md:p-6 flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar">
           {renderContent()}
         </div>
       </main>
