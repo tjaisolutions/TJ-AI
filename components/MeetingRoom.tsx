@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Video, VideoOff, PhoneOff, MessageSquare, Share, Captions, CircleDot, Loader2, RefreshCw, UserPlus, CheckCircle2, LogOut } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, PhoneOff, MessageSquare, Share, Captions, CircleDot, Loader2, RefreshCw, UserPlus, CheckCircle2, LogOut, MonitorUp, X } from 'lucide-react';
 import { RecordedMeeting, TranscriptItem } from '../types';
 import { analyzeMeeting } from '../services/geminiService';
 import { io, Socket } from 'socket.io-client';
@@ -26,6 +26,7 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
   
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(true);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [meetingEnded, setMeetingEnded] = useState(false);
@@ -39,7 +40,8 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
   const roomId = 'sala-padrao-tj'; 
   
   // Streams
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null); // Stream da Câmera
+  const [screenStream, setScreenStream] = useState<MediaStream | null>(null); // Stream da Tela
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
   // Recording State
@@ -54,7 +56,7 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
   const [sidebarMode, setSidebarMode] = useState<'PARTICIPANTS' | 'TRANSCRIPT'>('PARTICIPANTS');
   const [isListening, setIsListening] = useState(false); // Visual indicator for voice activity
 
-  // --- 1. SETUP LOCAL MEDIA ---
+  // --- 1. SETUP LOCAL MEDIA (CAMERA) ---
   useEffect(() => {
     const startLocalStream = async () => {
         try {
@@ -78,15 +80,23 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
         if (localStream) {
             localStream.getTracks().forEach(track => track.stop());
         }
+        if (screenStream) {
+            screenStream.getTracks().forEach(track => track.stop());
+        }
     };
   }, [meetingEnded]);
 
   // Attach Stream to Video Element (Robust way)
+  // Se estiver compartilhando tela, mostra a tela no "localVideo", senão mostra a câmera
   useEffect(() => {
-    if (localVideoRef.current && localStream) {
-        localVideoRef.current.srcObject = localStream;
+    if (localVideoRef.current) {
+        if (isScreenSharing && screenStream) {
+            localVideoRef.current.srcObject = screenStream;
+        } else if (localStream) {
+            localVideoRef.current.srcObject = localStream;
+        }
     }
-  }, [localStream]);
+  }, [localStream, screenStream, isScreenSharing]);
 
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
@@ -160,8 +170,18 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
           }
       };
 
-      if (localStream) {
-          localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      // Adiciona tracks do stream ATUAL (seja camera ou tela)
+      const currentStream = isScreenSharing && screenStream ? screenStream : localStream;
+      if (currentStream) {
+          // Importante: Adicionar track de áudio do microfone (localStream) mesmo se estiver compartilhando tela
+          // Se estiver compartilhando tela, usamos o video da tela, mas o audio do mic (geralmente)
+          
+          if (isScreenSharing && screenStream) {
+             screenStream.getVideoTracks().forEach(track => pc.addTrack(track, screenStream));
+             if (localStream) localStream.getAudioTracks().forEach(track => pc.addTrack(track, screenStream));
+          } else if (localStream) {
+             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+          }
       }
 
       peerConnectionRef.current = pc;
@@ -207,6 +227,67 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
       }
   };
 
+  // --- SCREEN SHARE LOGIC ---
+
+  const stopScreenShare = () => {
+      if (screenStream) {
+          screenStream.getTracks().forEach(track => track.stop());
+      }
+      setScreenStream(null);
+      setIsScreenSharing(false);
+
+      // Reverter para a câmera no WebRTC
+      if (peerConnectionRef.current && localStream) {
+          const videoTrack = localStream.getVideoTracks()[0];
+          const sender = peerConnectionRef.current.getSenders().find(s => s.track?.kind === 'video');
+          if (sender && videoTrack) {
+              sender.replaceTrack(videoTrack);
+          }
+      }
+  };
+
+  const handleScreenShare = async () => {
+      if (isScreenSharing) {
+          stopScreenShare();
+          return;
+      }
+
+      try {
+          // Solicita compartilhamento de tela
+          const displayMediaOptions = {
+              video: {
+                  displaySurface: "browser", // Tenta priorizar, mas o user escolhe
+              },
+              audio: false // Geralmente queremos manter o microfone, não o áudio do sistema, para evitar eco
+          };
+          
+          // Cast para any pois typescript as vezes reclama de getDisplayMedia em navigator
+          const stream = await (navigator.mediaDevices as any).getDisplayMedia(displayMediaOptions);
+          
+          setScreenStream(stream);
+          setIsScreenSharing(true);
+
+          // Detecta se o usuário parou o compartilhamento pela interface nativa do navegador
+          stream.getVideoTracks()[0].onended = () => {
+              stopScreenShare();
+          };
+
+          // Substituir a trilha de vídeo no PeerConnection atual
+          if (peerConnectionRef.current) {
+              const videoTrack = stream.getVideoTracks()[0];
+              const sender = peerConnectionRef.current.getSenders().find((s: RTCRtpSender) => s.track?.kind === 'video');
+              if (sender) {
+                  sender.replaceTrack(videoTrack);
+              }
+          }
+
+      } catch (err) {
+          console.error("Erro ao compartilhar tela:", err);
+          setNotification("Não foi possível compartilhar a tela (Permissão negada ou não suportado).");
+          setTimeout(() => setNotification(null), 3000);
+      }
+  };
+
   // --- MEDIA CONTROLS ---
 
   useEffect(() => {
@@ -216,10 +297,12 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
   }, [isMicOn, localStream]);
 
   useEffect(() => {
-    if (localStream) {
+    if (localStream && !isScreenSharing) {
+        // Só desabilita o track da câmera se NÃO estiver compartilhando tela.
+        // Se estiver compartilhando tela, a câmera já não está sendo enviada pelo replaceTrack, mas mantemos o estado.
         localStream.getVideoTracks().forEach(track => track.enabled = isCameraOn);
     }
-  }, [isCameraOn, localStream]);
+  }, [isCameraOn, localStream, isScreenSharing]);
 
   // --- SPEECH RECOGNITION ---
   useEffect(() => {
@@ -280,6 +363,7 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
   const handleHangUp = async () => {
     // 1. Stop Media
     localStream?.getTracks().forEach(track => track.stop());
+    screenStream?.getTracks().forEach(track => track.stop());
     peerConnectionRef.current?.close();
     socketRef.current?.disconnect();
 
@@ -386,7 +470,7 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
                             ref={remoteVideoRef}
                             autoPlay 
                             playsInline 
-                            className={`w-full h-full object-cover transform scale-x-[-1] transition-opacity duration-500 absolute inset-0 ${remoteStream ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+                            className={`w-full h-full object-cover transition-opacity duration-500 absolute inset-0 ${remoteStream ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
                         />
 
                         {/* 2. LOCAL VIDEO ELEMENT (Main or PiP) */}
@@ -401,7 +485,7 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
                                 autoPlay 
                                 playsInline
                                 muted // Sempre mudo para evitar eco local
-                                className="w-full h-full object-cover transform scale-x-[-1]" 
+                                className={`w-full h-full object-cover ${isScreenSharing ? '' : 'transform scale-x-[-1]'}`} // Não espelhar se for tela
                             />
                             {/* Dot indicator for PiP */}
                             {remoteStream && <div className="absolute bottom-1 right-2 w-2 h-2 bg-emerald-500 rounded-full border border-black"></div>}
@@ -427,6 +511,12 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
                     <div>
                          {remoteStream ? <span className="text-emerald-400">Conectado</span> : <span className="text-slate-300">Aguardando</span>}
                     </div>
+                    {isScreenSharing && (
+                         <>
+                            <div className="w-px h-3 bg-white/20"></div>
+                            <span className="text-[#20bbe3] flex items-center gap-1"><MonitorUp size={10} /> Sua Tela</span>
+                         </>
+                    )}
                 </div>
             </div>
 
@@ -445,6 +535,10 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
                             <CircleDot size={20} className={isRecording ? "animate-pulse fill-red-600" : ""} />
                         </button>
                     )}
+
+                    <button onClick={handleScreenShare} className={`p-3 sm:p-4 rounded-full transition-all duration-200 ${isScreenSharing ? 'bg-[#20bbe3] text-[#111623] shadow-[0_0_15px_rgba(32,187,227,0.3)]' : 'bg-[#2d3f57] hover:bg-[#3d5375] text-white'}`} title="Compartilhar Tela">
+                        <MonitorUp size={20} />
+                    </button>
 
                     <button onClick={() => setIsTranscribing(!isTranscribing)} className={`p-3 sm:p-4 rounded-full transition-all duration-200 hidden sm:flex ${isTranscribing ? 'bg-[#20bbe3] text-[#111623]' : 'bg-[#2d3f57] hover:bg-[#3d5375] text-white'}`}>
                         <Captions size={20} />
@@ -477,7 +571,7 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
                                 <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-[#1e2e41] rounded-full"></div>
                             </div>
                             <div className="flex-1">
-                                <p className="text-sm font-bold text-white">Você</p>
+                                <p className="text-sm font-bold text-white">Você {isScreenSharing && '(Compartilhando)'}</p>
                                 <p className="text-xs text-emerald-400">Online</p>
                             </div>
                         </div>
