@@ -27,6 +27,7 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
   const [transcript, setTranscript] = useState<TranscriptItem[]>([]);
   const recognitionRef = useRef<any>(null);
   const [sidebarMode, setSidebarMode] = useState<'PARTICIPANTS' | 'TRANSCRIPT'>('PARTICIPANTS');
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false); // Mobile sidebar toggle
 
   useEffect(() => {
     let localStream: MediaStream | null = null;
@@ -204,24 +205,24 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
   }
 
   // Adjust container height based on whether it is a guest view (full screen) or embedded
-  const containerClass = isGuest ? "h-screen w-full p-4" : "h-[calc(100vh-140px)]";
+  const containerClass = isGuest ? "h-screen w-full p-0 sm:p-4" : "h-[calc(100vh-140px)]";
 
   return (
-    <div className={`${containerClass} flex gap-4 animate-in fade-in duration-500 relative bg-[#111623]`}>
+    <div className={`${containerClass} flex flex-col lg:flex-row gap-4 animate-in fade-in duration-500 relative bg-[#111623]`}>
         
         {linkCopied && (
             <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-[#20bbe3] text-[#111623] px-4 py-2 rounded-lg font-bold shadow-lg shadow-[#20bbe3]/30 flex items-center gap-2 animate-in slide-in-from-top-2">
                 <Check size={18} />
-                Link de convite copiado!
+                Link copiado!
             </div>
         )}
 
         {/* Main Video Area */}
-        <div className="flex-1 bg-[#111623] rounded-2xl relative overflow-hidden flex flex-col shadow-2xl border border-[#1687cb]/10 group">
+        <div className="flex-1 bg-[#111623] rounded-none sm:rounded-2xl relative overflow-hidden flex flex-col shadow-2xl border-none sm:border border-[#1687cb]/10 group">
             
             <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-10 bg-gradient-to-b from-black/50 to-transparent">
                 <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-lg text-white font-medium text-sm border border-white/10">
-                    Reunião de Alinhamento {isGuest && "(Visitante)"}
+                    Reunião {isGuest && "(Visitante)"}
                 </div>
                 {isRecording && (
                      <div className="flex items-center gap-2 bg-red-500/90 backdrop-blur px-3 py-1.5 rounded-lg text-white text-xs font-bold animate-pulse shadow-lg shadow-red-500/20">
@@ -245,62 +246,69 @@ const MeetingRoom: React.FC<MeetingRoomProps> = ({ onLeave, onSaveMeeting, isGue
                 ) : isCameraOn ? (
                     <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-contain transform scale-x-[-1]" />
                 ) : (
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-[#1687cb] to-[#20bbe3] flex items-center justify-center text-4xl font-bold text-[#111623]">
+                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-tr from-[#1687cb] to-[#20bbe3] flex items-center justify-center text-3xl sm:text-4xl font-bold text-[#111623]">
                         {isGuest ? 'VS' : 'EU'}
                     </div>
                 )}
                 
                 <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded text-white text-sm font-medium z-10">
-                    {isGuest ? 'Visitante' : 'Você'} {isMicOn ? '' : '(Microfone desligado)'}
+                    {isGuest ? 'Visitante' : 'Você'} {isMicOn ? '' : '(Muted)'}
                 </div>
             </div>
 
             {/* Bottom Controls */}
-            <div className="h-20 bg-[#1e2e41] flex items-center justify-between px-6 border-t border-[#1687cb]/10 relative z-20 shrink-0">
-                <div className="flex items-center gap-2 text-slate-400 text-sm hidden md:flex">
-                   <span>Meeting ID: 123-456</span>
-                </div>
-
-                <div className="flex items-center gap-3 absolute left-1/2 transform -translate-x-1/2">
-                    <button onClick={toggleMic} className={`p-4 rounded-full transition-all duration-200 ${isMicOn ? 'bg-[#2d3f57] hover:bg-[#3d5375] text-white' : 'bg-red-500 text-white'}`}>
-                        {isMicOn ? <Mic size={20} /> : <MicOff size={20} />}
-                    </button>
-                    
-                    <button onClick={toggleCamera} className={`p-4 rounded-full transition-all duration-200 ${isCameraOn ? 'bg-[#2d3f57] hover:bg-[#3d5375] text-white' : 'bg-red-500 text-white'}`}>
-                        {isCameraOn ? <Video size={20} /> : <VideoOff size={20} />}
-                    </button>
-
-                    {!isGuest && (
-                        <button onClick={toggleRecording} className={`p-4 rounded-full transition-all duration-200 ${isRecording ? 'bg-white text-red-600 shadow-lg' : 'bg-[#2d3f57] hover:bg-[#3d5375] text-white'}`}>
-                            <CircleDot size={20} className={isRecording ? "animate-pulse fill-red-600" : ""} />
+            <div className="h-20 bg-[#1e2e41] flex items-center px-4 border-t border-[#1687cb]/10 relative z-20 shrink-0">
+                <div className="flex-1 overflow-x-auto custom-scrollbar flex items-center justify-center py-2">
+                    <div className="flex items-center gap-3">
+                        <button onClick={toggleMic} className={`p-3 md:p-4 rounded-full transition-all duration-200 shrink-0 ${isMicOn ? 'bg-[#2d3f57] hover:bg-[#3d5375] text-white' : 'bg-red-500 text-white'}`}>
+                            {isMicOn ? <Mic size={20} /> : <MicOff size={20} />}
                         </button>
-                    )}
+                        
+                        <button onClick={toggleCamera} className={`p-3 md:p-4 rounded-full transition-all duration-200 shrink-0 ${isCameraOn ? 'bg-[#2d3f57] hover:bg-[#3d5375] text-white' : 'bg-red-500 text-white'}`}>
+                            {isCameraOn ? <Video size={20} /> : <VideoOff size={20} />}
+                        </button>
 
-                    <button onClick={toggleTranscription} className={`p-4 rounded-full transition-all duration-200 ${isTranscribing ? 'bg-[#20bbe3] text-[#111623]' : 'bg-[#2d3f57] hover:bg-[#3d5375] text-white'}`}>
-                        <Captions size={20} />
-                    </button>
+                        {!isGuest && (
+                            <button onClick={toggleRecording} className={`p-3 md:p-4 rounded-full transition-all duration-200 shrink-0 ${isRecording ? 'bg-white text-red-600 shadow-lg' : 'bg-[#2d3f57] hover:bg-[#3d5375] text-white'}`}>
+                                <CircleDot size={20} className={isRecording ? "animate-pulse fill-red-600" : ""} />
+                            </button>
+                        )}
 
-                    <button onClick={handleShareLink} className="p-4 rounded-full bg-[#2d3f57] hover:bg-[#3d5375] text-white">
-                        <Share size={20} />
-                    </button>
+                        <button onClick={toggleTranscription} className={`p-3 md:p-4 rounded-full transition-all duration-200 shrink-0 ${isTranscribing ? 'bg-[#20bbe3] text-[#111623]' : 'bg-[#2d3f57] hover:bg-[#3d5375] text-white'}`}>
+                            <Captions size={20} />
+                        </button>
 
-                    <button onClick={handleHangUp} className="p-4 rounded-full bg-red-500 hover:bg-red-600 text-white w-16 flex items-center justify-center shadow-lg shadow-red-500/20">
-                        <PhoneOff size={24} />
-                    </button>
-                </div>
+                        <button onClick={handleShareLink} className="p-3 md:p-4 rounded-full bg-[#2d3f57] hover:bg-[#3d5375] text-white shrink-0">
+                            <Share size={20} />
+                        </button>
 
-                <div className="flex items-center gap-3">
-                     {/* Sidebar toggle only visible if not strictly necessary, or simplified for guest */}
-                    <button onClick={() => setSidebarMode('TRANSCRIPT')} className={`p-3 rounded-full transition-colors ${sidebarMode === 'TRANSCRIPT' ? 'bg-[#20bbe3]/20 text-[#20bbe3]' : 'text-slate-300'}`}>
-                        <MessageSquare size={20} />
-                    </button>
+                        <button onClick={() => setShowMobileSidebar(!showMobileSidebar)} className={`lg:hidden p-3 md:p-4 rounded-full transition-colors shrink-0 ${showMobileSidebar ? 'bg-[#20bbe3]/20 text-[#20bbe3]' : 'bg-[#2d3f57] text-white'}`}>
+                            <MessageSquare size={20} />
+                        </button>
+
+                        <button onClick={handleHangUp} className="p-3 md:p-4 rounded-full bg-red-500 hover:bg-red-600 text-white w-14 md:w-16 flex items-center justify-center shadow-lg shadow-red-500/20 shrink-0 ml-2">
+                            <PhoneOff size={24} />
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="w-80 bg-[#1e2e41] rounded-2xl border border-[#1687cb]/10 hidden lg:flex flex-col">
-            <div className="flex border-b border-[#1687cb]/10 bg-[#111623]/20 rounded-t-2xl">
+        {/* Sidebar (Desktop + Mobile Overlay) */}
+        <div className={`
+            fixed lg:static inset-0 lg:inset-auto z-40 bg-[#111623] lg:bg-[#1e2e41] lg:w-80 lg:rounded-2xl lg:border lg:border-[#1687cb]/10 lg:flex flex-col
+            transition-transform duration-300 transform 
+            ${showMobileSidebar ? 'translate-y-0' : 'translate-y-full lg:translate-y-0'}
+        `}>
+            {/* Mobile Sidebar Header */}
+            <div className="lg:hidden p-4 border-b border-[#1687cb]/10 flex justify-between items-center">
+                <h3 className="font-bold text-white">Detalhes da Reunião</h3>
+                <button onClick={() => setShowMobileSidebar(false)} className="text-slate-400">
+                    <Check size={24} />
+                </button>
+            </div>
+
+            <div className="flex border-b border-[#1687cb]/10 bg-[#111623]/20 rounded-t-none lg:rounded-t-2xl">
                 <button onClick={() => setSidebarMode('PARTICIPANTS')} className={`flex-1 py-3 text-sm font-bold transition-colors ${sidebarMode === 'PARTICIPANTS' ? 'text-white border-b-2 border-[#20bbe3]' : 'text-slate-500'}`}>
                     Participantes
                 </button>
