@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { User } from '../types';
-import { Plus, Trash2, Shield, Mail, User as UserIcon } from 'lucide-react';
+import { Plus, Trash2, Shield, Mail, User as UserIcon, Pencil } from 'lucide-react';
 import { Modal, FormInput, FormSelect } from './Modal';
 
 interface SettingsProps {
@@ -12,23 +11,54 @@ interface SettingsProps {
 
 const Settings: React.FC<SettingsProps> = ({ users, setUsers, currentUser }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newUser, setNewUser] = useState<Partial<User>>({
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [formData, setFormData] = useState<Partial<User>>({
     name: '', email: '', password: '', role: 'Viewer'
   });
 
+  const handleOpenModal = (user?: User) => {
+    if (user) {
+      setEditingUser(user);
+      setFormData({
+        name: user.name,
+        email: user.email,
+        password: user.password,
+        role: user.role
+      });
+    } else {
+      setEditingUser(null);
+      setFormData({ name: '', email: '', password: '', role: 'Viewer' });
+    }
+    setIsModalOpen(true);
+  };
+
   const handleSaveUser = () => {
-    if (newUser.name && newUser.email && newUser.password) {
-      const userToAdd: User = {
-        id: `u-${Date.now()}`,
-        name: newUser.name!,
-        email: newUser.email!,
-        password: newUser.password!,
-        role: newUser.role as 'Admin' | 'Manager' | 'Viewer',
-        avatar: `https://ui-avatars.com/api/?name=${newUser.name}&background=random`
-      };
-      setUsers([...users, userToAdd]);
+    if (formData.name && formData.email && formData.password) {
+      if (editingUser) {
+        // Update existing user
+        setUsers(users.map(u => u.id === editingUser.id ? {
+          ...u,
+          name: formData.name!,
+          email: formData.email!,
+          password: formData.password!,
+          role: formData.role as 'Admin' | 'Manager' | 'Viewer',
+          avatar: `https://ui-avatars.com/api/?name=${formData.name}&background=random`
+        } : u));
+      } else {
+        // Create new user
+        const userToAdd: User = {
+          id: `u-${Date.now()}`,
+          name: formData.name!,
+          email: formData.email!,
+          password: formData.password!,
+          role: formData.role as 'Admin' | 'Manager' | 'Viewer',
+          avatar: `https://ui-avatars.com/api/?name=${formData.name}&background=random`
+        };
+        setUsers([...users, userToAdd]);
+      }
       setIsModalOpen(false);
-      setNewUser({ name: '', email: '', password: '', role: 'Viewer' });
+      setEditingUser(null);
+      setFormData({ name: '', email: '', password: '', role: 'Viewer' });
     }
   };
 
@@ -48,7 +78,7 @@ const Settings: React.FC<SettingsProps> = ({ users, setUsers, currentUser }) => 
         
         {currentUser.role === 'Admin' && (
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => handleOpenModal()}
             className="bg-[#20bbe3] hover:bg-[#1687cb] text-[#111623] px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 shadow-lg shadow-[#20bbe3]/20 active:scale-95"
           >
             <Plus size={18} />
@@ -82,14 +112,25 @@ const Settings: React.FC<SettingsProps> = ({ users, setUsers, currentUser }) => 
                 </div>
               </div>
               
-              {currentUser.role === 'Admin' && user.id !== currentUser.id && (
-                <button 
-                  onClick={() => handleDeleteUser(user.id)}
-                  className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                  title="Remover Usuário"
-                >
-                  <Trash2 size={18} />
-                </button>
+              {currentUser.role === 'Admin' && (
+                <div className="flex items-center gap-2">
+                   <button 
+                    onClick={() => handleOpenModal(user)}
+                    className="p-2 text-slate-400 hover:text-[#20bbe3] hover:bg-[#20bbe3]/10 rounded-lg transition-colors"
+                    title="Editar Usuário"
+                   >
+                    <Pencil size={18} />
+                   </button>
+                   {user.id !== currentUser.id && (
+                    <button 
+                      onClick={() => handleDeleteUser(user.id)}
+                      className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                      title="Remover Usuário"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                   )}
+                </div>
               )}
             </div>
           ))}
@@ -99,13 +140,13 @@ const Settings: React.FC<SettingsProps> = ({ users, setUsers, currentUser }) => 
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Cadastrar Novo Usuário"
+        title={editingUser ? "Editar Usuário" : "Cadastrar Novo Usuário"}
         onSave={handleSaveUser}
       >
-        <FormInput label="Nome Completo" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} placeholder="Ex: Ana Souza" autoFocus />
-        <FormInput label="Email de Acesso" type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} placeholder="email@empresa.com" />
-        <FormInput label="Senha Temporária" type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="******" />
-        <FormSelect label="Nível de Permissão" value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value as any})}>
+        <FormInput label="Nome Completo" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Ex: Ana Souza" autoFocus />
+        <FormInput label="Email de Acesso" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="email@empresa.com" />
+        <FormInput label="Senha" type="text" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="******" />
+        <FormSelect label="Nível de Permissão" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value as any})}>
           <option value="Viewer">Viewer (Apenas Visualizar)</option>
           <option value="Manager">Manager (Editar Projetos/Custos)</option>
           <option value="Admin">Admin (Acesso Total)</option>
