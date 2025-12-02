@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Projects from './components/Projects';
@@ -12,7 +11,7 @@ import Settings from './components/Settings';
 import Login from './components/Login';
 import { ViewState, Cost, Client, Budget, Project, Meeting, RecordedMeeting, CRMLead, Receivable, User } from './types';
 import { MOCK_PROJECTS, MOCK_CLIENTS, MOCK_LEADS, MOCK_BUDGETS, MOCK_COSTS, MOCK_MEETINGS, MOCK_RECEIVABLES, MOCK_USERS } from './constants';
-import { Search, Bell, UserCircle, Plus, Briefcase, Building2, Tag, FileText, UploadCloud, User as UserIcon, LogOut } from 'lucide-react';
+import { Search, Bell, UserCircle, Plus, Briefcase, Building2, Tag, FileText, UploadCloud, User as UserIcon, LogOut, X, ChevronRight, FolderKanban, Users } from 'lucide-react';
 import { Modal, FormInput, FormSelect } from './components/Modal';
 
 const App: React.FC = () => {
@@ -32,6 +31,11 @@ const App: React.FC = () => {
   const [recordedMeetings, setRecordedMeetings] = useState<RecordedMeeting[]>([]);
   const [receivables, setReceivables] = useState<Receivable[]>(MOCK_RECEIVABLES);
 
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
   // Guest Logic check on mount
   const isGuest = new URLSearchParams(window.location.search).get('guest') === 'true';
 
@@ -44,6 +48,35 @@ const App: React.FC = () => {
     setCurrentUser(null);
     setView('DASHBOARD');
   };
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Search Logic
+  const filteredProjectsSearch = projects.filter(p => 
+    p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    p.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const filteredClientsSearch = clients.filter(c => 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    c.company.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleSearchResultClick = (view: ViewState) => {
+    setView(view);
+    setShowSearchResults(false);
+    setSearchQuery('');
+  };
+
 
   // --- CLIENTS VIEW ---
   const ClientsView = () => {
@@ -520,13 +553,83 @@ const App: React.FC = () => {
       <main className="pl-20 lg:pl-64 min-h-screen flex flex-col transition-all duration-300">
         {/* Top Header */}
         <header className="h-20 bg-[#111623]/80 backdrop-blur-md sticky top-0 z-40 border-b border-[#1687cb]/20 px-6 flex items-center justify-between">
-          <div className="hidden md:flex items-center w-96 bg-[#1e2e41] rounded-lg px-4 py-2 border border-[#1687cb]/10 focus-within:border-[#20bbe3]/50 transition-colors">
-            <Search size={18} className="text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Buscar projetos, clientes, leads..." 
-              className="bg-transparent border-none outline-none text-sm ml-3 w-full text-white placeholder-slate-500"
-            />
+          <div className="hidden md:flex flex-col relative" ref={searchRef}>
+            <div className="flex items-center w-96 bg-[#1e2e41] rounded-lg px-4 py-2 border border-[#1687cb]/10 focus-within:border-[#20bbe3]/50 transition-colors">
+              <Search size={18} className="text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Buscar projetos ou clientes..." 
+                className="bg-transparent border-none outline-none text-sm ml-3 w-full text-white placeholder-slate-500"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowSearchResults(e.target.value.length > 0);
+                }}
+                onFocus={() => setShowSearchResults(searchQuery.length > 0)}
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="text-slate-500 hover:text-white">
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* Search Results Dropdown */}
+            {showSearchResults && (
+              <div className="absolute top-full mt-2 w-96 bg-[#1e2e41] border border-[#1687cb]/30 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="p-2">
+                   {filteredProjectsSearch.length === 0 && filteredClientsSearch.length === 0 ? (
+                      <div className="p-4 text-center text-slate-500 text-sm">
+                        Nenhum resultado encontrado.
+                      </div>
+                   ) : (
+                      <>
+                        {filteredProjectsSearch.length > 0 && (
+                          <div className="mb-2">
+                             <div className="px-3 py-1 text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                                <FolderKanban size={12} /> Projetos
+                             </div>
+                             {filteredProjectsSearch.slice(0, 3).map(p => (
+                               <div 
+                                  key={p.id} 
+                                  onClick={() => handleSearchResultClick('PROJECTS')}
+                                  className="px-3 py-2 hover:bg-[#111623] rounded-lg cursor-pointer group flex items-center justify-between"
+                               >
+                                  <div>
+                                    <p className="text-sm font-bold text-white group-hover:text-[#20bbe3]">{p.title}</p>
+                                    <p className="text-xs text-slate-500">{p.clientName}</p>
+                                  </div>
+                                  <ChevronRight size={14} className="text-slate-600 group-hover:text-[#20bbe3]" />
+                               </div>
+                             ))}
+                          </div>
+                        )}
+
+                        {filteredClientsSearch.length > 0 && (
+                          <div>
+                             <div className="px-3 py-1 text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                                <Users size={12} /> Clientes
+                             </div>
+                             {filteredClientsSearch.slice(0, 3).map(c => (
+                               <div 
+                                  key={c.id} 
+                                  onClick={() => handleSearchResultClick('CLIENTS')}
+                                  className="px-3 py-2 hover:bg-[#111623] rounded-lg cursor-pointer group flex items-center justify-between"
+                               >
+                                  <div>
+                                    <p className="text-sm font-bold text-white group-hover:text-[#20bbe3]">{c.name}</p>
+                                    <p className="text-xs text-slate-500">{c.company}</p>
+                                  </div>
+                                  <ChevronRight size={14} className="text-slate-600 group-hover:text-[#20bbe3]" />
+                               </div>
+                             ))}
+                          </div>
+                        )}
+                      </>
+                   )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-4 ml-auto">
