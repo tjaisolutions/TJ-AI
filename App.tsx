@@ -5,7 +5,6 @@ import Dashboard from './components/Dashboard';
 import Projects from './components/Projects';
 import CRM from './components/CRM';
 import Agenda from './components/Agenda';
-import MeetingRoom from './components/MeetingRoom';
 import Reports from './components/Reports';
 import Receivables from './components/Receivables';
 import Settings from './components/Settings';
@@ -42,9 +41,6 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-
-  // Guest Logic check on mount
-  const isGuest = new URLSearchParams(window.location.search).get('guest') === 'true';
 
   // --- INITIAL DATA LOADING ---
   useEffect(() => {
@@ -83,12 +79,8 @@ const App: React.FC = () => {
         }
     };
 
-    if (!isGuest) {
-        initData();
-    } else {
-        setAppLoading(false);
-    }
-  }, [isGuest]);
+    initData();
+  }, []);
 
   // --- PERSISTENCE EFFECTS ---
   // Only save if app has finished loading to prevent overwriting with empty state
@@ -574,23 +566,8 @@ const App: React.FC = () => {
     );
   };
 
-  const handleSaveMeeting = (meeting: RecordedMeeting) => {
-    setRecordedMeetings(prev => [meeting, ...prev]);
-    setView('AGENDA');
-  };
-
-  // If Guest URL detected, render Guest View immediately
-  if (isGuest) {
-     return (
-        <div className="min-h-screen bg-[#111623] text-slate-200 font-sans">
-             <MeetingRoom onLeave={() => {}} onSaveMeeting={() => {}} isGuest={true} />
-        </div>
-     );
-  }
-
   // Authentication Guard
   if (!currentUser) {
-     // We only check login if not guest
      if (appLoading) return <div className="h-screen flex items-center justify-center bg-[#111623] text-[#20bbe3]"><Loader2 className="animate-spin" size={32} /></div>;
      return <Login users={users.length > 0 ? users : MOCK_USERS} onLogin={handleLogin} />;
   }
@@ -615,8 +592,6 @@ const App: React.FC = () => {
         return <CostsView />;
       case 'AGENDA':
         return <Agenda clients={clients} projects={projects} meetings={meetings} setMeetings={setMeetings} recordedMeetings={recordedMeetings} currentUser={currentUser} />;
-      case 'MEETING_ROOM':
-        return <MeetingRoom onLeave={() => setView('AGENDA')} onSaveMeeting={handleSaveMeeting} isGuest={false} />;
       case 'SETTINGS':
         return <Settings users={users} setUsers={setUsers} currentUser={currentUser} />;
       default:
