@@ -165,4 +165,4 @@ export interface CRMLead {
   createdBy?: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'PROJECTS' | 'CLIENTS' | 'BUDGETS' | 'COSTS' | 'RECEIVABLES' | 'CRM' | 'AGENDA' | 'MEETING_ROOM' | 'REPORTS' | 'SETTINGS';
+export type ViewState = 'DASHBOARD' | 'PROJECTS' | 'CLIENTS' | 'BUDGETS' | 'COSTS' | 'RECEIVABLES' | 'CRM' | 'AGENDA' | 'REPORTS' | 'SETTINGS';
