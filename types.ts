@@ -165,4 +165,14 @@ export interface CRMLead {
   createdBy?: string;
 }
 
+export interface Prospect {
+  name: string;
+  company: string; // Often implied by name in search results
+  email: string;
+  phone: string;
+  whatsapp?: string; // Novo campo
+  website: string;
+  description?: string;
+}
+
 export type ViewState = 'DASHBOARD' | 'PROJECTS' | 'CLIENTS' | 'BUDGETS' | 'COSTS' | 'RECEIVABLES' | 'CRM' | 'AGENDA' | 'REPORTS' | 'SETTINGS';
