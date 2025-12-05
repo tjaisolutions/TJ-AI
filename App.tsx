@@ -15,6 +15,29 @@ import { Modal, FormInput, FormSelect } from './components/Modal';
 import { dataService } from './services/dataService';
 import { MOCK_USERS } from './constants';
 
+const CostCard: React.FC<{ cost: Cost }> = ({ cost }) => (
+  <div className="bg-[#1e2e41] p-4 rounded-xl border border-[#1687cb]/10 flex justify-between items-center hover:border-[#20bbe3]/30 transition-all group">
+      <div className="flex-1">
+        <div className="flex items-center gap-2 mb-1">
+           <h4 className="text-white font-bold group-hover:text-[#20bbe3] transition-colors line-clamp-1">{cost.description}</h4>
+           {cost.type === 'Project' && cost.projectName && (
+              <span className="hidden sm:inline-flex text-[10px] bg-[#1687cb]/20 text-[#20bbe3] px-2 py-0.5 rounded-full border border-[#1687cb]/30 items-center gap-1">
+                  {cost.projectName}
+              </span>
+           )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-slate-400 text-xs">
+          <span className="bg-[#111623] px-2 py-0.5 rounded text-slate-500 border border-slate-800">{cost.category}</span> 
+          <span>{new Date(cost.date).toLocaleDateString()}</span>
+          <span className="hidden sm:flex items-center gap-1 text-slate-500"><UserIcon size={10} /> {cost.createdBy}</span>
+        </div>
+      </div>
+      <div className="text-red-400 font-mono font-bold bg-red-500/10 px-2 sm:px-3 py-1 rounded-lg border border-red-500/20 text-xs sm:text-sm whitespace-nowrap">
+        - R$ {cost.amount.toLocaleString()}
+      </div>
+  </div>
+);
+
 const App: React.FC = () => {
   const [currentView, setView] = useState<ViewState>('DASHBOARD');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -421,29 +444,6 @@ const App: React.FC = () => {
       }
       clientGroups[clientName].push(cost);
     });
-
-    const CostCard = ({ cost }: { cost: Cost }) => (
-      <div className="bg-[#1e2e41] p-4 rounded-xl border border-[#1687cb]/10 flex justify-between items-center hover:border-[#20bbe3]/30 transition-all group">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-               <h4 className="text-white font-bold group-hover:text-[#20bbe3] transition-colors line-clamp-1">{cost.description}</h4>
-               {cost.type === 'Project' && cost.projectName && (
-                  <span className="hidden sm:inline-flex text-[10px] bg-[#1687cb]/20 text-[#20bbe3] px-2 py-0.5 rounded-full border border-[#1687cb]/30 items-center gap-1">
-                      {cost.projectName}
-                  </span>
-               )}
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-slate-400 text-xs">
-              <span className="bg-[#111623] px-2 py-0.5 rounded text-slate-500 border border-slate-800">{cost.category}</span> 
-              <span>{new Date(cost.date).toLocaleDateString()}</span>
-              <span className="hidden sm:flex items-center gap-1 text-slate-500"><UserIcon size={10} /> {cost.createdBy}</span>
-            </div>
-          </div>
-          <div className="text-red-400 font-mono font-bold bg-red-500/10 px-2 sm:px-3 py-1 rounded-lg border border-red-500/20 text-xs sm:text-sm whitespace-nowrap">
-            - R$ {cost.amount.toLocaleString()}
-          </div>
-      </div>
-    );
 
     return (
       <div className="space-y-6 animate-in fade-in">
