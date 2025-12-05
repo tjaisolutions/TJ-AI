@@ -1,5 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
+import { Prospect } from '../types';
 
 const apiKey = process.env.API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
@@ -65,5 +66,64 @@ export const analyzeMeeting = async (transcriptText: string): Promise<{ summary:
       summary: "Erro ao processar resumo.",
       actionPlan: "Não foi possível gerar o plano de ação devido a um erro na IA."
     };
+  }
+};
+
+export const findProspects = async (niche: string, region: string): Promise<Prospect[]> => {
+  if (!apiKey) {
+    console.error("API Key missing");
+    return [];
+  }
+
+  try {
+    // Nota: Usamos googleSearch tool. Com googleSearch, não podemos usar responseMimeType: 'application/json'.
+    // Devemos pedir JSON no texto e fazer parse manual.
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash', // Modelo atualizado
+      contents: `Atue como um especialista em prospecção B2B (SDR).
+      Utilize o Google Search para encontrar empresas reais do nicho "${niche}" localizadas em "${region}".
+      
+      Liste pelo menos 5 a 10 empresas relevantes encontradas agora.
+      Para cada empresa, extraia ou infira dos resultados:
+      1. Nome da Empresa
+      2. Website (URL)
+      3. Telefone (se disponível publicamente)
+      4. Email de contato (se disponível publicamente)
+      5. WhatsApp: Tente identificar se existe um número de celular ou link de WhatsApp explícito. Se o telefone principal parecer ser celular, repita-o aqui.
+      6. Uma brevíssima descrição do que fazem.
+
+      IMPORTANTE: Retorne a resposta ESTRITAMENTE como um array JSON cru, sem formatação markdown (sem \`\`\`json).
+      O formato de cada objeto deve ser:
+      {
+        "name": "Nome da Empresa",
+        "company": "Nome da Empresa",
+        "email": "email@exemplo.com ou 'Não disponível'",
+        "phone": "(XX) XXXX-XXXX ou 'Não disponível'",
+        "whatsapp": "(XX) 9XXXX-XXXX ou 'Não disponível'", 
+        "website": "url do site ou 'Não disponível'",
+        "description": "descrição curta"
+      }
+      `,
+      config: {
+        tools: [{ googleSearch: {} }]
+      }
+    });
+
+    let text = response.text || "[]";
+    
+    // Limpeza básica caso o modelo retorne markdown
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    // Tenta encontrar o array JSON no texto
+    const jsonMatch = text.match(/\[.*\]/s);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    
+    return [];
+
+  } catch (error) {
+    console.error("Gemini API Error (Prospecting):", error);
+    return [];
   }
 };
