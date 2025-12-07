@@ -69,21 +69,29 @@ export const analyzeMeeting = async (transcriptText: string): Promise<{ summary:
   }
 };
 
-export const findProspects = async (niche: string, region: string): Promise<Prospect[]> => {
+export const findProspects = async (niche: string, region: string, excludeNames: string[] = []): Promise<Prospect[]> => {
   if (!apiKey) {
     console.error("API Key missing");
     return [];
   }
 
   try {
+    // Monta texto de exclusão para evitar repetidos na paginação
+    const exclusionText = excludeNames.length > 0
+        ? `IMPORTANTE: NÃO inclua na lista as seguintes empresas que já foram encontradas: ${excludeNames.join(', ')}.`
+        : "";
+
     // Reduzindo o escopo para evitar timeout (Erro 500) da API
     // Solicitando ~10 resultados para garantir estabilidade da resposta
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Atue como um SDR. Encontre 10 empresas do nicho "${niche}" em "${region}" utilizando o Google Search.
+      contents: `Atue como um SDR experiente. Encontre 10 NOVAS empresas do nicho "${niche}" em "${region}" utilizando o Google Search.
+      
+      ${exclusionText}
       
       Para cada empresa, extraia os dados de contato disponíveis publicamente.
-      Priorize empresas com site ou telefone listado.
+      Priorize empresas com site, telefone ou WhatsApp listado.
+      Tente variar os resultados, buscando além da primeira página se necessário.
 
       Retorne os dados ESTRITAMENTE em formato JSON (array de objetos), sem markdown.
       Formato do Objeto:
